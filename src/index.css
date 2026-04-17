@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply font-sans text-text-primary bg-surface antialiased;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+}
+
+@layer components {
+  /* Shimmer skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, #F5F5F5 25%, #EBEBEB 50%, #F5F5F5 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #F5F5F5; }
+  ::-webkit-scrollbar-thumb { background: #D8D8D8; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #BDBDBD; }
+
+  /* Focus ring override */
+  .focus-ring:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.08);
+    border-color: #0056B3;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .truncate-60 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
