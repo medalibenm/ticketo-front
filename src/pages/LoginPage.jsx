@@ -1,39 +1,18 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { useLogin } from '../hooks/auth/useLogin';
 import { Button } from '../components/ui/Button';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
-const ROLE_ROUTES = {
-  ADMIN: '/admin/dashboard',
-  DEVELOPER: '/developer/dashboard',
-  ENGINEER: '/engineer/dashboard',
-};
-
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const { login } = useAuth();
+  const { mutate: login, isPending: loading } = useLogin();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const { access_token } = await authService.login({ email, password });
-      const decoded = login(access_token);
-      navigate(ROLE_ROUTES[decoded.role] || '/admin/dashboard', { replace: true });
-    } catch (err) {
-      setError(err.message || 'Identifiants incorrects. Veuillez réessayer.');
-    } finally {
-      setLoading(false);
-    }
+    login({ email, password });
   };
 
   return (
@@ -99,27 +78,10 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Error */}
-            {error && (
-              <p className="text-xs text-danger bg-red-50 border border-red-200 rounded-btn px-3 py-2">
-                {error}
-              </p>
-            )}
-
-            <Button type="submit" variant="primary" className="w-full" size="lg" loading={loading}>
+            <Button type="submit" variant="primary" className="w-full mt-6" size="lg" loading={loading}>
               Se connecter
             </Button>
           </form>
-
-          {/* Demo hint */}
-          <div className="mt-8 p-4 bg-surface-muted rounded-card border border-border">
-            <p className="text-xs text-text-muted font-medium mb-2">Comptes de démonstration :</p>
-            <div className="space-y-1 text-xs text-text-muted font-mono">
-              <p>Admin: <span className="text-text-secondary">admin@at.dz / admin123</span></p>
-              <p>Développeur: <span className="text-text-secondary">dev@at.dz / dev123</span></p>
-              <p>Ingénieur: <span className="text-text-secondary">eng@at.dz / eng123</span></p>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { adminProfileService } from '../../services/api';
-import { useAsync } from '../../hooks/useAsync';
+import { useAdminProfile } from '../../hooks/admin/useAdminProfile';
+import { useUpdateAdminProfile } from '../../hooks/admin/useUpdateAdminProfile';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { useToast } from '../../context/ToastContext';
@@ -8,28 +8,20 @@ import { SkeletonCard } from '../../components/ui/Skeleton';
 import { RoleBadge } from '../../components/ui/Badge';
 
 export default function AdminProfile() {
-  const toast = useToast();
-  const { data: profile, loading } = useAsync(() => adminProfileService.getProfile(), []);
+  const { data: profile, isLoading: loading } = useAdminProfile();
+  const { mutate: updateProfile, isPending: saving } = useUpdateAdminProfile();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', password: '' });
-  const [saving, setSaving] = useState(false);
 
   const startEdit = () => {
     setForm({ name: profile.name, password: '' });
     setEditing(true);
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await adminProfileService.updateProfile(form);
-      toast.success('Profil mis à jour avec succès.');
-      setEditing(false);
-    } catch {
-      toast.error('Erreur lors de la mise à jour.');
-    } finally {
-      setSaving(false);
-    }
+  const handleSave = () => {
+    updateProfile(form, {
+      onSuccess: () => setEditing(false)
+    });
   };
 
   if (loading) return <SkeletonCard className="max-w-2xl" />;

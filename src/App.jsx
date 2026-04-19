@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import AppShell from './components/layout/AppShell';
@@ -25,9 +24,8 @@ import EngineerDashboard from './pages/engineer/EngineerDashboard';
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <Routes>
+      <ToastProvider>
+        <Routes>
             {/* Public */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Navigate to="/login" replace />} />
@@ -67,8 +65,7 @@ export default function App() {
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </ToastProvider>
-      </AuthProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

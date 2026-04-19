@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { adminMisassignmentsService } from '../../services/api';
-import { usePaginated } from '../../hooks/useAsync';
+import { useMisassignments } from '../../hooks/admin/useMisassignments';
+import { useReassignTicket } from '../../hooks/admin/useReassignTicket';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -21,9 +21,22 @@ const TAB_LABELS = { Tous: 'Tous', PENDING: 'En attente', REVIEWED: 'Examiné', 
 export default function AdminMisassignments() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('Tous');
-  const { items, total, loading, page, totalPages, limit, goToPage } = usePaginated(
-    adminMisassignmentsService.getMisassignments.bind(adminMisassignmentsService)
-  );
+  const [page, setPage] = useState(1);
+  const limit = 10;
+
+  const { data, isLoading: loading } = useMisassignments({ 
+    skip: (page - 1) * limit, 
+    limit,
+    status: activeTab === 'Tous' ? undefined : activeTab,
+  });
+
+  const { mutateAsync: reassignTicket } = useReassignTicket();
+
+  const items = data?.items || [];
+  const total = data?.total || 0;
+  const totalPages = Math.ceil(total / limit);
+
+  const goToPage = (p) => setPage(p);
 
   const [detailModal, setDetailModal] = useState(null);
   const [reassignModal, setReassignModal] = useState(null);
@@ -31,7 +44,7 @@ export default function AdminMisassignments() {
   const [reassigning, setReassigning] = useState(false);
   const [reassignError, setReassignError] = useState('');
 
-  const displayItems = activeTab === 'Tous' ? items : items.filter((m) => m.status === activeTab);
+  const displayItems = items;
 
   const handleReassign = async () => {
     setReassignError('');
@@ -42,11 +55,10 @@ export default function AdminMisassignments() {
     }
     setReassigning(true);
     try {
-      await adminMisassignmentsService.reassign(reassignModal.id, parseInt(newEngId));
-      toast.success(`Ticket #${reassignModal.ticket_id} réassigné à l'ingénieur ${newEngId}.`);
+      await reassignTicket({ reportId: reassignModal.id, new_engineer_id: parseInt(newEngId) });
+      toast.success(`Ticket #${reassignModal.ticket_id} rÃ©assignÃ© Ã  l'ingÃ©nieur ${newEngId}.`);
       setReassignModal(null);
       setDetailModal(null);
-      goToPage(page);
     } catch {
       toast.error('Erreur lors de la réassignation.');
     } finally {

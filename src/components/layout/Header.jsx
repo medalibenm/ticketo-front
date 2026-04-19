@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell, LogOut, User } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore } from '../../store/auth.store';
 import { useNavigate } from 'react-router-dom';
 import NotificationDrawer from '../admin/NotificationDrawer';
 
 export default function Header({ title, breadcrumb }) {
-  const { user, logout } = useAuth();
+  const { role, clearTokens } = useAuthStore();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -23,19 +23,17 @@ export default function Header({ title, breadcrumb }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuOpen]);
 
-  const initials = user?.name
-    ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
-    : 'U';
+  const initials = 'AT';
 
   const handleLogout = () => {
     setMenuOpen(false);
-    logout();
+    clearTokens();
     navigate('/login');
   };
 
   const handleProfileClick = () => {
     setMenuOpen(false);
-    const rolePath = user?.role?.toLowerCase() || 'admin';
+    const rolePath = role?.toLowerCase() || 'admin';
     navigate(`/${rolePath}/profile`);
   };
 
@@ -78,8 +76,7 @@ export default function Header({ title, breadcrumb }) {
             {menuOpen && (
               <div className="absolute right-0 mt-3 w-[220px] bg-white rounded-card shadow-card border border-border py-1 z-50 animate-fade-in origin-top-right">
                 <div className="px-4 py-3 border-b border-divider">
-                  <p className="text-sm font-semibold text-text-primary truncate">{user?.name || 'Utilisateur'}</p>
-                  <p className="text-[11px] text-text-muted mt-0.5 truncate">{user?.email || ''}</p>
+                  <p className="text-sm font-semibold text-text-primary capitalize truncate">{role?.toLowerCase() || 'Utilisateur'}</p>
                 </div>
                 <div className="py-1.5">
                   <button

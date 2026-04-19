@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore } from '../../store/auth.store';
 import clsx from 'clsx';
 import {
   LayoutDashboard, Ticket, Users, Flag,
@@ -29,8 +29,8 @@ const engineerLinks = [
 const roleLinks = { ADMIN: adminLinks, DEVELOPER: developerLinks, ENGINEER: engineerLinks };
 
 export default function Sidebar() {
-  const { user } = useAuth();
-  const links = (user && roleLinks[user.role]) || adminLinks;
+  const { role } = useAuthStore();
+  const links = (role && roleLinks[role]) || adminLinks;
 
   return (
     <aside className="w-[220px] min-h-screen bg-surface border-r border-border flex flex-col flex-shrink-0">
