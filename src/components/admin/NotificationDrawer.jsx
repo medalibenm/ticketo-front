@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
-import { adminNotificationsService } from '../../services/api';
+﻿import { useEffect } from 'react';
+import { useAdminNotifications } from '../../hooks/admin/useAdminNotifications';
+import { useMarkAdminNotificationRead } from '../../hooks/admin/useMarkAdminNotificationRead';
 import { useToast } from '../../context/ToastContext';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
@@ -10,27 +11,31 @@ function formatTime(dateStr) {
 }
 
 export default function NotificationDrawer({ open, onClose }) {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { data: notifications = [], isLoading: loading, refetch } = useAdminNotifications({ enabled: open });
+  const { mutateAsync: markAsRead } = useMarkAdminNotificationRead();
   const toast = useToast();
 
   useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    adminNotificationsService.getNotifications()
-      .then(setNotifications)
-      .finally(() => setLoading(false));
-  }, [open]);
+    if (open) refetch();
+  }, [open, refetch]);
 
   const markRead = async (id) => {
-    await adminNotificationsService.markRead(id);
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    try {
+      await markAsRead(id);
+    } catch {
+      toast.error('Erreur lors de la mise à jour.');
+    }
   };
 
   const markAllRead = async () => {
-    await Promise.all(notifications.filter((n) => !n.read).map((n) => adminNotificationsService.markRead(n.id)));
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    toast.success('Toutes les notifications marquées comme lues.');
+    try {
+      const waitlist = notifications.filter((n) => !n.is_read).map((n) => markAsRead(n.id));
+      if (waitlist.length === 0) return;
+      await Promise.all(waitlist);
+      toast.success('Toutes les notifications marquées comme lues.');
+    } catch {
+      toast.error('Erreur lors de la mise à jour.');
+    }
   };
 
   return (
@@ -43,7 +48,7 @@ export default function NotificationDrawer({ open, onClose }) {
       {/* drawer */}
       <div
         className={clsx(
-          'fixed right-0 top-0 h-full w-[340px] bg-white shadow-[−4px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col transition-transform duration-250',
+          'fixed right-0 top-0 h-full w-[340px] bg-white shadow-[-4px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col transition-transform duration-250',
           open ? 'translate-x-0' : 'translate-x-full'
         )}
       >
@@ -74,7 +79,7 @@ export default function NotificationDrawer({ open, onClose }) {
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-6">
               <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mb-3">
-                <span className="text-2xl">🔔</span>
+                <span className="text-2xl">💡</span>
               </div>
               <p className="text-sm font-medium text-text-secondary">Aucune notification</p>
               <p className="text-xs text-text-muted mt-1">Vous êtes à jour !</p>
@@ -84,21 +89,21 @@ export default function NotificationDrawer({ open, onClose }) {
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  onClick={() => !n.read && markRead(n.id)}
+                  onClick={() => !n.is_read && markRead(n.id)}
                   className={clsx(
                     'flex gap-3 px-5 py-4 border-b border-divider cursor-pointer transition-colors',
-                    n.read ? 'hover:bg-surface-muted' : 'hover:bg-primary-light bg-[#FAFCFF]'
+                    n.is_read ? 'hover:bg-surface-muted' : 'hover:bg-primary-light bg-[#FAFCFF]'
                   )}
                 >
                   {/* Unread dot */}
                   <div className="flex-shrink-0 mt-1">
-                    {!n.read
+                    {!n.is_read
                       ? <span className="block w-2 h-2 rounded-full bg-accent mt-0.5" />
                       : <span className="block w-2 h-2" />
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={clsx('text-sm', n.read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
+                    <p className={clsx('text-sm', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
                       {n.message}
                     </p>
                     <p className="text-xs text-text-muted mt-1">{formatTime(n.created_at)}</p>

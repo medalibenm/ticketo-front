@@ -3,6 +3,7 @@ import { Bell, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { useNavigate } from 'react-router-dom';
 import NotificationDrawer from '../admin/NotificationDrawer';
+import { useAdminNotifications } from '../../hooks/admin/useAdminNotifications';
 
 export default function Header({ title, breadcrumb }) {
   const { role, clearTokens } = useAuthStore();
@@ -10,6 +11,10 @@ export default function Header({ title, breadcrumb }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+
+  const isAdmin = role === 'ADMIN';
+  const { data: adminNotifications } = useAdminNotifications({ enabled: isAdmin });
+  const unreadCount = isAdmin ? (adminNotifications?.filter(n => !n.is_read)?.length || 0) : 0;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -61,7 +66,7 @@ export default function Header({ title, breadcrumb }) {
           >
             <Bell size={18} />
             {/* Unread dot */}
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" />
+            {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" />}
           </button>
 
           <div className="relative" ref={menuRef}>

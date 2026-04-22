@@ -15,4 +15,10 @@ export const adminService = {
 
   reassignTicket: (reportId, body) =>
     api.patch(`/admin/misassignments/${reportId}/reassign`, body).then((r) => r.data),
+
+  getNotifications: () =>
+    api.get('/admin/notifications').then((r) => r.data),
+
+  markNotificationRead: (id) =>
+    api.patch(`/admin/notifications/${id}/read`).then((r) => r.data),
 }

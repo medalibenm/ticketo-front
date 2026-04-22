@@ -25,8 +25,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'at-auth',
-      // Only persist refreshToken — accessToken stays in memory only
-      partialize: (state) => ({ refreshToken: state.refreshToken }),
+      // Persisting entire state to localStorage to prevent forced logouts on page refresh during development.
     }
   )
 )
