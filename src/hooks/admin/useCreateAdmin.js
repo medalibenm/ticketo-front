@@ -1,25 +1,13 @@
-import { useState } from 'react'
-import { adminService } from '../../api/admin.service'
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminService } from '../../api/admin.service';
 
-/** POST /admin/users/admin */
-export function useCreateAdmin({ onSuccess } = {}) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const mutate = async (body) => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await adminService.createAdmin(body)
-      if (onSuccess) onSuccess(data)
-      return data
-    } catch (err) {
-      setError(err)
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return { mutate, isLoading, error }
+export function useCreateAdmin() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (body) => adminService.createAdmin(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
 }

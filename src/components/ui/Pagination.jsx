@@ -1,4 +1,4 @@
-import { Button } from './Button';
+﻿import { Button } from './Button';
 
 export function Pagination({ page, totalPages, total, limit, onPageChange, loading }) {
   const start = page * limit + 1;
@@ -33,3 +33,4 @@ export function Pagination({ page, totalPages, total, limit, onPageChange, loadi
     </div>
   );
 }
+

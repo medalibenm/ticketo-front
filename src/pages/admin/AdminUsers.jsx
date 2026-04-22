@@ -1,6 +1,13 @@
-import { useState } from 'react';
-import { adminUsersService } from '../../services/api';
-import { usePaginated } from '../../hooks/useAsync';
+﻿import { useEffect, useState } from 'react';
+import { useAllUsers } from '../../hooks/admin/useAllUsers';
+import { useCreateEngineer } from '../../hooks/admin/useCreateEngineer';
+import { useCreateDeveloper } from '../../hooks/admin/useCreateDeveloper';
+import { useCreateAdmin } from '../../hooks/admin/useCreateAdmin';
+import { useDeleteUser } from '../../hooks/admin/useDeleteUser';
+import { useUpdateEngineer } from '../../hooks/admin/useUpdateEngineer';
+import { useUpdateDeveloper } from '../../hooks/admin/useUpdateDeveloper';
+import { getErrorMessage } from '../../api/errors';
+
 import { RoleBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input, Select, Toggle } from '../../components/ui/Input';
@@ -11,18 +18,41 @@ import { useToast } from '../../context/ToastContext';
 import { Pencil, Trash2 } from 'lucide-react';
 
 function formatDate(d) {
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-const EMPTY_ENGINEER = { name: '', email: '', password: '', specialty: '', level: 'JUNIOR', available: true };
-const EMPTY_DEVELOPER = { name: '', email: '', password: '', company: '' };
+const EMPTY_ENGINEER = { name: '', email: '', password: '', specialite: '', niveau: 'JUNIOR', disponibilite: true };
+const EMPTY_DEVELOPER = { name: '', email: '', password: '', entreprise: '' };
 const EMPTY_ADMIN = { name: '', email: '', password: '' };
 
 export default function AdminUsers() {
   const toast = useToast();
-  const { items, total, loading, page, totalPages, limit, goToPage, refetch } = usePaginated(
-    adminUsersService.getUsers.bind(adminUsersService)
-  );
+
+  // Pagination (zero-based for Pagination component)
+  const [page, setPage] = useState(0);
+  const limit = 10;
+  const { data, isLoading: loading } = useAllUsers({ skip: 0, limit: 1000 });
+  const allUsers = data?.items || [];
+  const total = allUsers.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  useEffect(() => {
+    if (page > totalPages - 1) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [page, totalPages]);
+
+  const start = page * limit;
+  const end = start + limit;
+  const items = allUsers.slice(start, end);
+
+  // Mutations
+  const { mutateAsync: createEngineer } = useCreateEngineer();
+  const { mutateAsync: createDeveloper } = useCreateDeveloper();
+  const { mutateAsync: createAdmin } = useCreateAdmin();
+  const { mutateAsync: updateEngineer } = useUpdateEngineer();
+  const { mutateAsync: updateDeveloper } = useUpdateDeveloper();
+  const { mutateAsync: deleteUser } = useDeleteUser();
 
   // Modals state
   const [modal, setModal] = useState(null); // 'engineer' | 'developer' | 'admin' | 'edit-eng' | 'edit-dev'
@@ -46,10 +76,10 @@ export default function AdminUsers() {
     setEditTarget(user);
     setForm({
       name: user.name, email: user.email, password: '',
-      specialty: user.specialty || '',
-      level: user.level || 'JUNIOR',
-      available: user.available ?? true,
-      company: user.company || '',
+      specialite: user.specialite || '',
+      niveau: user.niveau || 'JUNIOR',
+      disponibilite: user.disponibilite ?? true,
+      entreprise: user.entreprise || '',
     });
   };
 
@@ -58,17 +88,52 @@ export default function AdminUsers() {
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      if (modal === 'engineer') await adminUsersService.createEngineer(form);
-      else if (modal === 'developer') await adminUsersService.createDeveloper(form);
-      else if (modal === 'admin') await adminUsersService.createAdmin(form);
-      else if (modal === 'edit-eng') await adminUsersService.updateEngineer(editTarget.id, form);
-      else if (modal === 'edit-dev') await adminUsersService.updateDeveloper(editTarget.id, form);
+      if (modal === 'engineer') {
+        await createEngineer({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          specialite: form.specialite,
+          niveau: form.niveau,
+        });
+        setPage(Math.max(0, Math.ceil((total + 1) / limit) - 1));
+      } else if (modal === 'developer') {
+        await createDeveloper({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          entreprise: form.entreprise,
+        });
+        setPage(Math.max(0, Math.ceil((total + 1) / limit) - 1));
+      } else if (modal === 'admin') {
+        await createAdmin({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+        });
+        setPage(Math.max(0, Math.ceil((total + 1) / limit) - 1));
+      } else if (modal === 'edit-eng') {
+        await updateEngineer({
+          userId: editTarget.id,
+          body: {
+            specialite: form.specialite || null,
+            niveau: form.niveau || null,
+            disponibilite: Boolean(form.disponibilite),
+          },
+        });
+      } else if (modal === 'edit-dev') {
+        await updateDeveloper({
+          userId: editTarget.id,
+          body: {
+            entreprise: form.entreprise || null,
+          },
+        });
+      }
 
-      toast.success('Opération effectuée avec succès.');
+      toast.success('Operation completed successfully.');
       setModal(null);
-      refetch();
-    } catch {
-      toast.error('Une erreur est survenue.');
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -77,32 +142,36 @@ export default function AdminUsers() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await adminUsersService.deleteUser(deleteTarget.id);
-      toast.success(`Utilisateur "${deleteTarget.name}" supprimé.`);
+      await deleteUser(deleteTarget.id);
+      toast.success(`User "${deleteTarget.name}" deleted.`);
       setDeleteTarget(null);
-      refetch();
-    } catch {
-      toast.error('Impossible de supprimer cet utilisateur.');
+      const nextTotal = Math.max(0, total - 1);
+      const lastPageAfterDelete = Math.max(0, Math.ceil(nextTotal / limit) - 1);
+      if (page > lastPageAfterDelete) {
+        setPage(lastPageAfterDelete);
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
       setDeleting(false);
     }
   };
 
   const modalTitle = {
-    engineer: 'Ajouter un ingénieur',
-    developer: 'Ajouter un développeur',
-    admin: 'Ajouter un administrateur',
-    'edit-eng': 'Modifier l\'ingénieur',
-    'edit-dev': 'Modifier le développeur',
+    engineer: 'Add an Engineer',
+    developer: 'Add a Developer',
+    admin: 'Add an Admin',
+    'edit-eng': 'Edit Engineer',
+    'edit-dev': 'Edit Developer',
   };
 
   return (
     <div className="space-y-5">
-      {/* Top actions */}
+      {/* Top Actions */}
       <div className="flex justify-end gap-3">
-        <Button variant="secondary" size="sm" onClick={() => openCreate('developer')}>+ Ajouter un développeur</Button>
-        <Button variant="secondary" size="sm" onClick={() => openCreate('admin')}>+ Ajouter un admin</Button>
-        <Button variant="primary" size="sm" onClick={() => openCreate('engineer')}>+ Ajouter un ingénieur</Button>
+        <Button variant="secondary" size="sm" onClick={() => openCreate('developer')}>+ Add a Developer</Button>
+        <Button variant="secondary" size="sm" onClick={() => openCreate('admin')}>+ Add an Admin</Button>
+        <Button variant="primary" size="sm" onClick={() => openCreate('engineer')}>+ Add an Engineer</Button>
       </div>
 
       {/* Table */}
@@ -110,58 +179,67 @@ export default function AdminUsers() {
         <SkeletonTable rows={5} cols={9} />
       ) : (
         <div className="bg-white border border-border rounded-card shadow-card overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-surface-muted">
-              <tr>
-                {['#', 'Nom', 'Email', 'Rôle', 'Entreprise / Spécialité', 'Niveau', 'Disponibilité', 'Créé le', 'Actions'].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-widest whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((user) => (
-                <tr key={user.id} className="border-t border-divider hover:bg-surface-muted h-[52px] transition-colors">
-                  <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">{user.id}</td>
-                  <td className="px-4 py-3 font-medium text-sm text-text-primary whitespace-nowrap">{user.name}</td>
-                  <td className="px-4 py-3 text-sm text-text-secondary">{user.email}</td>
-                  <td className="px-4 py-3"><RoleBadge role={user.role} /></td>
-                  <td className="px-4 py-3 text-sm text-text-secondary">{user.company || user.specialty || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-text-secondary">{user.level || '—'}</td>
-                  <td className="px-4 py-3">
-                    {user.available !== null
-                      ? <span className={`text-xs font-medium ${user.available ? 'text-success' : 'text-danger'}`}>
-                          {user.available ? 'Disponible' : 'Indisponible'}
-                        </span>
-                      : <span className="text-text-muted text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">{formatDate(user.created_at)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {(user.role === 'ENGINEER' || user.role === 'DEVELOPER') && (
-                        <button
-                          onClick={() => openEdit(user)}
-                          className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-primary hover:bg-primary-light transition-colors"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setDeleteTarget(user)}
-                        className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-danger hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-surface-muted">
+                <tr>
+                  {['#', 'Name', 'Email', 'Role', 'Company / Specialty', 'Level', 'Availability', 'Created At', 'Actions'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-widest whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {items.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-8 text-center text-sm text-text-muted">
+                      No users found.
+                    </td>
+                  </tr>
+                )}
+                {items.map((user) => (
+                  <tr key={user.id} className="border-t border-divider hover:bg-surface-muted h-[52px] transition-colors">
+                    <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">{user.id}</td>
+                    <td className="px-4 py-3 font-medium text-sm text-text-primary whitespace-nowrap">{user.name}</td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">{user.email}</td>
+                    <td className="px-4 py-3"><RoleBadge role={user.role} /></td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">{user.entreprise || user.specialite || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">{user.niveau || '-'}</td>
+                    <td className="px-4 py-3">
+                      {user.disponibilite !== null
+                        ? <span className={`text-xs font-medium ${user.disponibilite ? 'text-success' : 'text-danger'}`}>
+                            {user.disponibilite ? 'Available' : 'Unavailable'}
+                          </span>
+                        : <span className="text-text-muted text-xs">-</span>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">{formatDate(user.created_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        {(user.role === 'ENGINEER' || user.role === 'DEVELOPER') && (
+                          <button
+                            onClick={() => openEdit(user)}
+                            className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-primary hover:bg-primary-light transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeleteTarget(user)}
+                          className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-danger hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <div className="px-4 border-t border-divider">
-            <Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPageChange={goToPage} loading={loading} />
+            <Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPageChange={setPage} loading={loading} />
           </div>
         </div>
       )}
@@ -173,9 +251,9 @@ export default function AdminUsers() {
         title={modalTitle[modal] || ''}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setModal(null)}>Annuler</Button>
+            <Button variant="secondary" onClick={() => setModal(null)}>Cancel</Button>
             <Button variant="primary" onClick={handleSubmit} loading={submitting}>
-              {modal?.startsWith('edit') ? 'Enregistrer' : 'Créer'}
+              {modal?.startsWith('edit') ? 'Save' : 'Create'}
             </Button>
           </>
         }
@@ -184,32 +262,36 @@ export default function AdminUsers() {
           {/* Admin warning */}
           {modal === 'admin' && (
             <div className="flex items-start gap-2 bg-accent-light border border-yellow-200 rounded-btn px-4 py-3">
-              <span className="text-base">⚠️</span>
-              <p className="text-xs text-accent-text font-medium">Les administrateurs ont un accès complet à la plateforme.</p>
+              <span className="text-base">!</span>
+              <p className="text-xs text-accent-text font-medium">Administrators have full access to the platform.</p>
             </div>
           )}
 
-          <Input label="Nom complet" value={form.name || ''} onChange={f('name')} placeholder="Prénom Nom" />
-          <Input label="Adresse e-mail" type="email" value={form.email || ''} onChange={f('email')} placeholder="email@at.dz" />
-          <Input label="Mot de passe" type="password" value={form.password || ''} onChange={f('password')} placeholder="••••••••" />
+          <Input label="Full Name" value={form.name || ''} onChange={f('name')} placeholder="First Last" disabled={modal?.startsWith('edit')} />
+          <Input label="Email Address" type="email" value={form.email || ''} onChange={f('email')} placeholder="email@at.dz" disabled={modal?.startsWith('edit')} />
+          {!modal?.startsWith('edit') && (
+            <Input label="Password" type="password" value={form.password || ''} onChange={f('password')} placeholder="********" />
+          )}
 
           {(modal === 'developer' || modal === 'edit-dev') && (
-            <Input label="Entreprise (optionnel)" value={form.company || ''} onChange={f('company')} placeholder="Nom de l'entreprise" />
+            <Input label="Company" value={form.entreprise || ''} onChange={f('entreprise')} placeholder="Company name" />
           )}
 
           {(modal === 'engineer' || modal === 'edit-eng') && (
             <>
-              <Input label="Spécialité (optionnel)" value={form.specialty || ''} onChange={f('specialty')} placeholder="ex: Réseau, Sécurité…" />
-              <Select label="Niveau" value={form.level || 'JUNIOR'} onChange={f('level')}>
+              <Input label="Specialty" value={form.specialite || ''} onChange={f('specialite')} placeholder="e.g. Network, Security" />
+              <Select label="Level" value={form.niveau || 'JUNIOR'} onChange={f('niveau')}>
                 <option value="JUNIOR">Junior</option>
-                <option value="MID">Mid</option>
                 <option value="SENIOR">Senior</option>
+                <option value="LEAD">Lead</option>
               </Select>
-              <Toggle
-                label="Disponible"
-                checked={form.available ?? true}
-                onChange={(e) => setForm((p) => ({ ...p, available: e.target.checked }))}
-              />
+              {modal === 'edit-eng' && (
+                <Toggle
+                  label="Available"
+                  checked={form.disponibilite ?? true}
+                  onChange={(e) => setForm((p) => ({ ...p, disponibilite: e.target.checked }))}
+                />
+              )}
             </>
           )}
         </div>
@@ -221,10 +303,11 @@ export default function AdminUsers() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         loading={deleting}
-        title="Supprimer l'utilisateur"
-        message={`Êtes-vous sûr de vouloir supprimer "${deleteTarget?.name}" ? Cette action est irréversible.`}
-        confirmLabel="Supprimer"
+        title="Delete User"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This action is irreversible.`}
+        confirmLabel="Delete"
       />
     </div>
   );
 }
+

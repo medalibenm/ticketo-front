@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+﻿import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import clsx from 'clsx';
 import {
@@ -8,22 +8,22 @@ import {
 
 const adminLinks = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/admin/tickets', label: 'Tous les tickets', icon: Ticket },
-  { to: '/admin/users', label: 'Utilisateurs', icon: Users },
-  { to: '/admin/misassignments', label: 'Signalements', icon: Flag },
-  { to: '/admin/kb', label: 'Base de connaissances', icon: BookOpen },
-  { to: '/admin/logs/ai', label: 'Logs IA', icon: Bot },
-  { to: '/admin/logs/audit', label: "Logs d'audit", icon: ClipboardList },
+  { to: '/admin/tickets', label: 'All Tickets', icon: Ticket },
+  { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/misassignments', label: 'Misassignments', icon: Flag },
+  { to: '/admin/kb', label: 'Knowledge Base', icon: BookOpen },
+  { to: '/admin/logs/ai', label: 'AI Logs', icon: Bot },
+  { to: '/admin/logs/audit', label: "Audit Logs", icon: ClipboardList },
 ];
 
 const developerLinks = [
   { to: '/developer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/developer/tickets', label: 'Mes tickets', icon: Ticket },
+  { to: '/developer/tickets', label: 'My Tickets', icon: Ticket },
 ];
 
 const engineerLinks = [
   { to: '/engineer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/engineer/tickets', label: 'Tickets assignés', icon: Ticket },
+  { to: '/engineer/tickets', label: 'Assigned Tickets', icon: Ticket },
 ];
 
 const roleLinks = { ADMIN: adminLinks, DEVELOPER: developerLinks, ENGINEER: engineerLinks };
@@ -66,3 +66,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

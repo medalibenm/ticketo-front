@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+﻿import { useEffect } from 'react';
 import { Button } from './Button';
 
 export function Modal({ open, onClose, title, children, footer, maxWidth = 'max-w-[480px]' }) {
@@ -68,3 +68,4 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
     </Modal>
   );
 }
+

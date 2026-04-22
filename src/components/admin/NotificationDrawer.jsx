@@ -23,7 +23,7 @@ export default function NotificationDrawer({ open, onClose }) {
     try {
       await markAsRead(id);
     } catch {
-      toast.error('Erreur lors de la mise à jour.');
+      toast.error('Error updating.');
     }
   };
 
@@ -32,9 +32,9 @@ export default function NotificationDrawer({ open, onClose }) {
       const waitlist = notifications.filter((n) => !n.is_read).map((n) => markAsRead(n.id));
       if (waitlist.length === 0) return;
       await Promise.all(waitlist);
-      toast.success('Toutes les notifications marquées comme lues.');
+      toast.success('All notifications marked as read.');
     } catch {
-      toast.error('Erreur lors de la mise à jour.');
+      toast.error('Error updating.');
     }
   };
 
@@ -60,7 +60,7 @@ export default function NotificationDrawer({ open, onClose }) {
               onClick={markAllRead}
               className="text-xs text-primary hover:underline font-medium"
             >
-              Tout marquer comme lu
+              Mark all as read
             </button>
             <button onClick={onClose} className="text-text-muted hover:text-text-secondary transition-colors">
               <X size={18} />
@@ -81,8 +81,8 @@ export default function NotificationDrawer({ open, onClose }) {
               <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mb-3">
                 <span className="text-2xl">💡</span>
               </div>
-              <p className="text-sm font-medium text-text-secondary">Aucune notification</p>
-              <p className="text-xs text-text-muted mt-1">Vous êtes à jour !</p>
+              <p className="text-sm font-medium text-text-secondary">No notifications</p>
+              <p className="text-xs text-text-muted mt-1">You are up to date!</p>
             </div>
           ) : (
             <ul>
@@ -117,3 +117,4 @@ export default function NotificationDrawer({ open, onClose }) {
     </>
   );
 }
+

@@ -1,26 +1,26 @@
-import Sidebar from './Sidebar';
+﻿import Sidebar from './Sidebar';
 import Header from './Header';
 import { Outlet, useLocation } from 'react-router-dom';
 
 const breadcrumbMap = {
   '/admin/dashboard': 'Admin / Dashboard',
-  '/admin/tickets': 'Admin / Tous les tickets',
-  '/admin/users': 'Admin / Gestion des utilisateurs',
-  '/admin/misassignments': 'Admin / Signalements',
-  '/admin/kb': 'Admin / Base de connaissances',
-  '/admin/logs/ai': 'Admin / Logs IA',
-  '/admin/logs/audit': "Admin / Logs d'audit",
+  '/admin/tickets': 'Admin / All Tickets',
+  '/admin/users': 'Admin / Gestion des Users',
+  '/admin/misassignments': 'Admin / Misassignments',
+  '/admin/kb': 'Admin / Knowledge Base',
+  '/admin/logs/ai': 'Admin / AI Logs',
+  '/admin/logs/audit': "Admin / Audit Logs",
   '/admin/profile': 'Admin / Profil',
 };
 
 const titleMap = {
   '/admin/dashboard': 'Dashboard',
-  '/admin/tickets': 'Tous les tickets',
-  '/admin/users': 'Gestion des utilisateurs',
-  '/admin/misassignments': 'Signalements',
-  '/admin/kb': 'Base de connaissances',
-  '/admin/logs/ai': 'Logs IA',
-  '/admin/logs/audit': "Logs d'audit",
+  '/admin/tickets': 'All Tickets',
+  '/admin/users': 'Gestion des Users',
+  '/admin/misassignments': 'Misassignments',
+  '/admin/kb': 'Knowledge Base',
+  '/admin/logs/ai': 'AI Logs',
+  '/admin/logs/audit': "Audit Logs",
   '/admin/profile': 'Profil',
 };
 
@@ -42,3 +42,4 @@ export default function AppShell() {
     </div>
   );
 }
+

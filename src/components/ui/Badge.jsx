@@ -1,4 +1,4 @@
-import clsx from 'clsx';
+﻿import clsx from 'clsx';
 
 const STATUS_MAP = {
   OPEN: { label: 'Ouvert', bg: '#EEF4FF', color: '#0056B3' },
@@ -58,3 +58,4 @@ export function DecisionBadge({ decision, className }) {
     </span>
   );
 }
+

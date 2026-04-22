@@ -1,25 +1,13 @@
-import { useState } from 'react'
-import { adminService } from '../../api/admin.service'
+﻿import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminService } from '../../api/admin.service';
 
-/** DELETE /admin/users/:userId */
-export function useDeleteUser({ onSuccess } = {}) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
-
-  const mutate = async (userId) => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await adminService.deleteUser(userId)
-      if (onSuccess) onSuccess(data, userId)
-      return data
-    } catch (err) {
-      setError(err)
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return { mutate, isLoading, error }
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (userId) => adminService.deleteUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
 }

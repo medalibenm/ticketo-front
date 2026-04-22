@@ -1,4 +1,4 @@
-export function SkeletonRow({ cols = 6 }) {
+﻿export function SkeletonRow({ cols = 6 }) {
   return (
     <tr>
       {Array.from({ length: cols }).map((_, i) => (
@@ -40,3 +40,4 @@ export function SkeletonTable({ rows = 5, cols = 6 }) {
     </div>
   );
 }
+

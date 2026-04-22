@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+﻿import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { ShieldAlert } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -31,3 +31,4 @@ export function ProtectedRoute({ allowedRoles }) {
 
   return <Outlet />;
 }
+
