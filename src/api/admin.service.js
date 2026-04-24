@@ -42,4 +42,22 @@ export const adminService = {
 
   updateEngineer: (userId, body) =>
     api.patch(`/admin/users/${userId}/engineer`, body).then((r) => r.data),
+
+  getAllTickets: (params) =>
+    api.get('/admin/tickets', { params }).then((r) => r.data),
+
+  assignTicket: (ticketId, body) =>
+    api.patch(`/admin/tickets/${ticketId}/assign`, body).then((r) => r.data),
+
+  getStats: () =>
+    api.get('/admin/stats').then((r) => r.data),
+
+  getKnowledgeBase: (params) =>
+    api.get('/admin/kb', { params }).then((r) => r.data),
+
+  getAILogs: (params) =>
+    api.get('/admin/logs/ai', { params }).then((r) => r.data),
+
+  getAuditLogs: (params) =>
+    api.get('/admin/logs/audit', { params }).then((r) => r.data),
 }

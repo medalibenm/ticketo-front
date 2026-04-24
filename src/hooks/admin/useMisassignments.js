@@ -5,5 +5,6 @@ export const useMisassignments = (params) => {
   return useQuery({
     queryKey: ['admin', 'misassignments', params],
     queryFn: () => adminService.getMisassignments(params),
+    keepPreviousData: true,
   });
 };

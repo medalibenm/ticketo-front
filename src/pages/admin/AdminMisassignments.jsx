@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMisassignments } from '../../hooks/admin/useMisassignments';
+import { useMisassignmentDetail } from '../../hooks/admin/useMisassignmentDetail';
 import { useReassignTicket } from '../../hooks/admin/useReassignTicket';
+import { getErrorMessage } from '../../api/errors';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -12,55 +14,81 @@ import { Eye } from 'lucide-react';
 import clsx from 'clsx';
 
 function formatDate(d) {
-  return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-const TABS = ['Tous', 'PENDING', 'REVIEWED', 'REASSIGNED'];
-const TAB_LABELS = { Tous: 'Tous', PENDING: 'En attente', REVIEWED: 'Examiné', REASSIGNED: 'Réassigné' };
+const TABS = ['ALL', 'PENDING', 'REVIEWED', 'REASSIGNED'];
+const TAB_LABELS = {
+  ALL: 'All',
+  PENDING: 'Pending',
+  REVIEWED: 'Reviewed',
+  REASSIGNED: 'Reassigned',
+};
 
 export default function AdminMisassignments() {
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState('Tous');
-  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('ALL');
+  const [page, setPage] = useState(0);
   const limit = 10;
 
-  const { data, isLoading: loading } = useMisassignments({ 
-    skip: (page - 1) * limit, 
-    limit,
-    status: activeTab === 'Tous' ? undefined : activeTab,
-  });
+  const { data, isLoading: loading } = useMisassignments({ skip: 0, limit: 1000 });
 
   const { mutateAsync: reassignTicket } = useReassignTicket();
 
-  const items = data?.items || [];
-  const total = data?.total || 0;
-  const totalPages = Math.ceil(total / limit);
+  const allItems = data?.items || [];
+  const filteredItems = activeTab === 'ALL'
+    ? allItems
+    : allItems.filter((item) => item.status === activeTab);
 
-  const goToPage = (p) => setPage(p);
+  const total = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  const [detailModal, setDetailModal] = useState(null);
+  useEffect(() => {
+    setPage(0);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (page > totalPages - 1) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [page, totalPages]);
+
+  const start = page * limit;
+  const end = start + limit;
+  const displayItems = filteredItems.slice(start, end);
+
+  const [detailModalId, setDetailModalId] = useState(null);
   const [reassignModal, setReassignModal] = useState(null);
   const [newEngId, setNewEngId] = useState('');
   const [reassigning, setReassigning] = useState(false);
   const [reassignError, setReassignError] = useState('');
 
-  const displayItems = items;
+  const { data: detailData, isLoading: detailLoading } = useMisassignmentDetail(detailModalId);
+  const selectedDetail = detailData || allItems.find((item) => item.id === detailModalId) || null;
 
   const handleReassign = async () => {
     setReassignError('');
     if (!newEngId) return;
-    if (parseInt(newEngId) === reassignModal.engineer_id) {
-      setReassignError('⚠️ Vous ne pouvez pas réassigner au même ingénieur.');
+
+    const parsedId = Number(newEngId);
+    if (parsedId === reassignModal.reporting_engineer_id) {
+      setReassignError('You cannot reassign to the same engineer.');
       return;
     }
+
     setReassigning(true);
     try {
-      await reassignTicket({ reportId: reassignModal.id, new_engineer_id: parseInt(newEngId) });
-      toast.success(`Ticket #${reassignModal.ticket_id} rÃ©assignÃ© Ã  l'ingÃ©nieur ${newEngId}.`);
+      await reassignTicket({ reportId: reassignModal.id, new_engineer_id: parsedId });
+      toast.success(`Ticket #${reassignModal.ticket_id} reassigned to engineer ${parsedId}.`);
       setReassignModal(null);
-      setDetailModal(null);
-    } catch {
-      toast.error('Erreur lors de la réassignation.');
+      setDetailModalId(null);
+    } catch (error) {
+      if (error?.response?.status === 409) {
+        const detail = error?.response?.data?.detail;
+        setReassignError(typeof detail === 'string' ? detail : 'Conflict while reassigning ticket.');
+      } else {
+        toast.error(getErrorMessage(error));
+      }
     } finally {
       setReassigning(false);
     }
@@ -92,7 +120,7 @@ export default function AdminMisassignments() {
           <table className="w-full">
             <thead className="bg-surface-muted">
               <tr>
-                {['#', 'Ticket ID', 'Ingénieur', 'Raison', 'Statut', 'Signalé le', 'Actions'].map((h) => (
+                {['#', 'Ticket ID', 'Reporting Engineer ID', 'Reason', 'Status', 'Created At', 'Actions'].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-medium text-text-muted uppercase tracking-widest">
                     {h}
                   </th>
@@ -110,24 +138,24 @@ export default function AdminMisassignments() {
                 >
                   <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">{m.id}</td>
                   <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">#{m.ticket_id}</td>
-                  <td className="px-4 py-3 text-sm text-text-primary font-medium">{m.engineer_name}</td>
+                  <td className="px-4 py-3 text-sm text-text-primary font-medium">#{m.reporting_engineer_id}</td>
                   <td className="px-4 py-3 text-sm text-text-secondary max-w-[240px]">
                     <span className="line-clamp-1">{m.reason.slice(0, 60)}{m.reason.length > 60 ? '…' : ''}</span>
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
-                  <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">{formatDate(m.reported_at)}</td>
+                  <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">{formatDate(m.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setDetailModal(m)}
+                        onClick={() => setDetailModalId(m.id)}
                         className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-primary hover:bg-primary-light transition-colors"
-                        title="Voir le détail"
+                        title="View details"
                       >
                         <Eye size={14} />
                       </button>
                       {m.status !== 'REASSIGNED' && (
                         <Button variant="secondary" size="sm" onClick={() => { setReassignModal(m); setNewEngId(''); setReassignError(''); }}>
-                          Réassigner
+                          Reassign
                         </Button>
                       )}
                     </div>
@@ -137,7 +165,7 @@ export default function AdminMisassignments() {
               {displayItems.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-text-muted">
-                    Aucun signalement pour ce filtre.
+                    No misassignments found for this filter.
                   </td>
                 </tr>
               )}
@@ -145,48 +173,51 @@ export default function AdminMisassignments() {
           </table>
 
           <div className="px-4 border-t border-divider">
-            <Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPageChange={goToPage} loading={loading} />
+            <Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPageChange={setPage} loading={loading} />
           </div>
         </div>
       )}
 
       {/* Detail modal */}
       <Modal
-        open={!!detailModal}
-        onClose={() => setDetailModal(null)}
-        title={`Signalement #${detailModal?.id}`}
+        open={Boolean(detailModalId)}
+        onClose={() => setDetailModalId(null)}
+        title={`Misassignment #${detailModalId ?? ''}`}
         maxWidth="max-w-[560px]"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDetailModal(null)}>Fermer</Button>
-            {detailModal?.status !== 'REASSIGNED' && (
-              <Button variant="accent" onClick={() => { setReassignModal(detailModal); setNewEngId(''); setReassignError(''); }}>
-                Réassigner le ticket
+            <Button variant="secondary" onClick={() => setDetailModalId(null)}>Close</Button>
+            {selectedDetail?.status !== 'REASSIGNED' && (
+              <Button variant="accent" onClick={() => { setReassignModal(selectedDetail); setNewEngId(''); setReassignError(''); }}>
+                Reassign Ticket
               </Button>
             )}
           </>
         }
       >
-        {detailModal && (
+        {detailLoading && (
+          <p className="text-sm text-text-secondary">Loading details...</p>
+        )}
+        {selectedDetail && !detailLoading && (
           <div className="space-y-4">
             <div className="flex gap-4">
               <div>
                 <p className="text-xs text-text-muted">Ticket ID</p>
-                <p className="text-sm font-mono font-medium text-text-primary">#{detailModal.ticket_id}</p>
+                <p className="text-sm font-mono font-medium text-text-primary">#{selectedDetail.ticket_id}</p>
               </div>
               <div>
-                <p className="text-xs text-text-muted">Ingénieur</p>
-                <p className="text-sm font-medium text-text-primary">{detailModal.engineer_name}</p>
+                <p className="text-xs text-text-muted">Reporting Engineer ID</p>
+                <p className="text-sm font-medium text-text-primary">#{selectedDetail.reporting_engineer_id}</p>
               </div>
               <div>
-                <p className="text-xs text-text-muted">Statut</p>
-                <StatusBadge status={detailModal.status} className="mt-0.5" />
+                <p className="text-xs text-text-muted">Status</p>
+                <StatusBadge status={selectedDetail.status} className="mt-0.5" />
               </div>
             </div>
             <div>
-              <p className="text-xs text-text-muted mb-2">Raison du signalement</p>
+              <p className="text-xs text-text-muted mb-2">Reason</p>
               <blockquote className="bg-surface-muted rounded-btn px-4 py-3 text-sm text-text-secondary leading-relaxed border-l-4 border-primary-light">
-                {detailModal.reason}
+                {selectedDetail.reason}
               </blockquote>
             </div>
           </div>
@@ -197,25 +228,25 @@ export default function AdminMisassignments() {
       <Modal
         open={!!reassignModal}
         onClose={() => setReassignModal(null)}
-        title="Réassigner l'ingénieur"
+        title="Reassign Engineer"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setReassignModal(null)}>Annuler</Button>
-            <Button variant="primary" onClick={handleReassign} loading={reassigning}>Confirmer</Button>
+            <Button variant="secondary" onClick={() => setReassignModal(null)}>Cancel</Button>
+            <Button variant="primary" onClick={handleReassign} loading={reassigning}>Confirm</Button>
           </>
         }
       >
         {reassignModal && (
           <div className="space-y-4">
             <p className="text-sm text-text-secondary">
-              Ticket <span className="font-mono font-medium">#{reassignModal.ticket_id}</span> actuellement assigné à <span className="font-medium">{reassignModal.engineer_name}</span>.
+              Ticket <span className="font-mono font-medium">#{reassignModal.ticket_id}</span> is currently assigned to engineer ID <span className="font-medium">#{reassignModal.reporting_engineer_id}</span>.
             </p>
             <Input
-              label="Nouvel ID ingénieur"
+              label="New Engineer ID"
               type="number"
               value={newEngId}
               onChange={(e) => setNewEngId(e.target.value)}
-              placeholder="Entrez l'ID du nouvel ingénieur"
+              placeholder="Enter the new engineer ID"
               error={reassignError}
             />
           </div>

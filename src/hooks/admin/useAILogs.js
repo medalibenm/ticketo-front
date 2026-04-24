@@ -1,43 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { adminService } from '../../api/admin.service'
 
-/**
- * FEATURE 8 — Paginated AI decision logs.
- * Returns { items, total, loading, error, page, totalPages, limit, goToPage, refetch }
- */
-export function useAILogs(limit = 10) {
-  const [page, setPage]   = useState(0)
-  const [items, setItems] = useState([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError]   = useState(null)
-
-  const fetchPage = useCallback(async (pageNum = 0) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await adminService.getAILogs({ skip: pageNum * limit, limit })
-      setItems(result.items)
-      setTotal(result.total)
-      setPage(pageNum)
-    } catch (err) {
-      setError(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [limit])
-
-  useEffect(() => { fetchPage(0) }, [fetchPage])
-
-  return {
-    items,
-    total,
-    loading,
-    error,
-    page,
-    totalPages: Math.ceil(total / limit),
-    limit,
-    goToPage: (p) => fetchPage(p),
-    refetch: () => fetchPage(page),
-  }
+export function useAILogs(params) {
+  return useQuery({
+    queryKey: ['admin', 'logs', 'ai', params],
+    queryFn: () => adminService.getAILogs(params),
+    keepPreviousData: true,
+  })
 }

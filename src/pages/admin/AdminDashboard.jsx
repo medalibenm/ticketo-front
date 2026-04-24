@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { adminStatsService } from '../../services/api';
+import { useStats } from '../../hooks/admin/useStats';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -40,14 +39,9 @@ const PIE_GRADIENTS = [
 ];
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading: loading } = useStats();
 
-  useEffect(() => {
-    adminStatsService.getStats().then(setStats).finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (loading || !stats) {
     return (
       <div className="space-y-7">
         <div className="grid grid-cols-3 gap-5">
@@ -56,6 +50,10 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const aiConfidencePercent = stats.avg_ai_confidence_score <= 1
+    ? stats.avg_ai_confidence_score * 100
+    : stats.avg_ai_confidence_score;
 
   const kpis = [
     { label: 'Total Tickets', value: stats.total_tickets, icon: Ticket, sub: 'Tous statuts confondus' },
@@ -74,10 +72,10 @@ export default function AdminDashboard() {
 
   const barData = [
     { name: 'Ouverts', value: stats.open_tickets, gradStart: '#818CF8', gradEnd: '#4338CA' },
-    { name: 'En cours', value: 24, gradStart: '#60A5FA', gradEnd: '#2563EB' },
-    { name: 'En attente', value: 11, gradStart: '#FBBF24', gradEnd: '#D97706' },
     { name: 'Résolus', value: stats.resolved_by_engineer_tickets, gradStart: '#34D399', gradEnd: '#059669' },
     { name: 'Auto-résolus', value: stats.auto_resolved_tickets, gradStart: '#6EE7B7', gradEnd: '#047857' },
+    { name: 'Escalades', value: stats.total_escalations, gradStart: '#FBBF24', gradEnd: '#D97706' },
+    { name: 'Signalements', value: stats.total_misassignments, gradStart: '#F87171', gradEnd: '#DC2626' },
   ];
 
   return (
@@ -91,9 +89,9 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 gap-5">
         <div className="bg-white border border-border rounded-card p-6 shadow-card">
           <p className="text-xs text-text-muted uppercase tracking-wider font-medium mb-3">Temps moyen de résolution</p>
-          <p className="text-[28px] font-semibold text-text-primary">{stats.avg_resolution_time_hours}h</p>
+          <p className="text-[28px] font-semibold text-text-primary">{stats.avg_resolution_time} min</p>
           <p className="text-xs text-text-muted mb-4">Toutes catégories confondues</p>
-          <StatBar value={stats.avg_resolution_time_hours} max={24} color="#4F46E5" />
+          <StatBar value={stats.avg_resolution_time} max={180} color="#4F46E5" />
         </div>
 
         <div className="bg-white border border-border rounded-card p-6 shadow-card">
@@ -111,16 +109,16 @@ export default function AdminDashboard() {
                 <circle
                   cx="18" cy="18" r="15.91" fill="none"
                   stroke="url(#conf-grad)" strokeWidth="3"
-                  strokeDasharray={`${stats.avg_ai_confidence * 100}, 100`}
+                  strokeDasharray={`${aiConfidencePercent}, 100`}
                   strokeLinecap="round"
                 />
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-text-primary">
-                {Math.round(stats.avg_ai_confidence * 100)}%
+                {Math.round(aiConfidencePercent)}%
               </span>
             </div>
             <div>
-              <p className="text-[28px] font-semibold text-text-primary leading-none">{(stats.avg_ai_confidence * 100).toFixed(1)}%</p>
+              <p className="text-[28px] font-semibold text-text-primary leading-none">{aiConfidencePercent.toFixed(1)}%</p>
               <p className="text-xs text-text-muted mt-1">Précision des décisions IA</p>
             </div>
           </div>
