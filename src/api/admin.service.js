@@ -55,9 +55,28 @@ export const adminService = {
   getKnowledgeBase: (params) =>
     api.get('/admin/kb', { params }).then((r) => r.data),
 
-  getAILogs: (params) =>
-    api.get('/admin/logs/ai', { params }).then((r) => r.data),
+  getAILogs: async (params) => {
+    const r = await api.get('/admin/logs/ai', { params: { limit: 1000 } });
+    const allData = r.data;
+    const items = Array.isArray(allData) ? allData : (allData.items || []);
+    // sort or filter if needed, paginate manually
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 10;
+    return {
+      items: items.slice(skip, skip + limit),
+      total: items.length
+    };
+  },
 
-  getAuditLogs: (params) =>
-    api.get('/admin/logs/audit', { params }).then((r) => r.data),
+  getAuditLogs: async (params) => {
+    const r = await api.get('/admin/logs/audit', { params: { limit: 1000, actor_type: params?.actor_type } });
+    const allData = r.data;
+    let items = Array.isArray(allData) ? allData : (allData.items || []);
+    const skip = params?.skip || 0;
+    const limit = params?.limit || 10;
+    return {
+      items: items.slice(skip, skip + limit),
+      total: items.length
+    };
+  },
 }

@@ -8,7 +8,7 @@ import { getErrorMessage } from '../../api/errors'
 export function useLogin() {
   const setTokens = useAuthStore((state) => state.setTokens)
   const navigate = useNavigate()
-  const { showToast } = useToast()
+  const toast = useToast()
 
   return useMutation({
     mutationFn: authService.login,
@@ -22,7 +22,7 @@ export function useLogin() {
       else navigate('/')
     },
     onError: (error) => {
-      showToast(getErrorMessage(error) || 'Identifiants incorrects. Veuillez réessayer.', 'error')
+      toast.error('Mot de passe ou email incorrect')
     },
   })
 }

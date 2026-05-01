@@ -9,6 +9,8 @@ import { Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { useToast } from '../../context/ToastContext';
+import { useAuthStore } from '../../store/auth.store';
+import { useDeveloperReplyClarification } from '../../hooks/developer/useDeveloperReplyClarification';
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -37,7 +39,23 @@ export default function AdminTickets() {
   const [assignModal, setAssignModal] = useState(null); // ticket obj
   const [viewModal, setViewModal] = useState(null); // ticket obj
   const [engineerId, setEngineerId] = useState('');
+  const [replyMessage, setReplyMessage] = useState('');
+  
+  const { role } = useAuthStore();
   const { mutateAsync: assignTicket, isPending: assigning } = useAssignTicket();
+  const { mutateAsync: replyClarification, isPending: replying } = useDeveloperReplyClarification();
+
+  const handleReply = async () => {
+    if (!replyMessage.trim()) return;
+    try {
+      await replyClarification({ ticketId: viewModal.id, message: replyMessage.trim() });
+      toast.success('Réponse envoyée avec succès.');
+      setReplyMessage('');
+      setViewModal(null);
+    } catch (error) {
+      toast.error('Erreur lors de l\'envoi de la réponse.');
+    }
+  };
 
   const handleFilter = () => {
     setFilters(pending);
@@ -252,6 +270,29 @@ export default function AdminTickets() {
                 {viewModal.description}
               </div>
             </div>
+
+            {viewModal.status === 'AWAITING_CLARIFICATION' && (role === 'DEVELOPER' || role === 'ADMIN') && (
+              <div className="pt-4 border-t border-divider">
+                <p className="text-sm font-semibold text-text-primary mb-3">Répondre à la clarification</p>
+                <textarea
+                  className="w-full bg-input-bg border border-input-border rounded-btn px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:bg-white resize-none"
+                  rows={4}
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  placeholder="Tapez votre réponse ici..."
+                />
+                <div className="mt-3 flex justify-end">
+                  <Button 
+                    variant="primary" 
+                    onClick={handleReply} 
+                    loading={replying}
+                    disabled={!replyMessage.trim()}
+                  >
+                    Envoyer la réponse
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -20,6 +20,9 @@ import DeveloperDashboard from './pages/developer/DeveloperDashboard';
 
 // Engineer pages
 import EngineerDashboard from './pages/engineer/EngineerDashboard';
+import EngineerTickets from './pages/engineer/EngineerTickets';
+import EngineerTicketDetail from './pages/engineer/EngineerTicketDetail';
+import EngineerProfile from './pages/engineer/EngineerProfile';
 
 export default function App() {
   return (
@@ -57,8 +60,9 @@ export default function App() {
             <Route element={<ProtectedRoute allowedRoles={['ENGINEER']} />}>
               <Route element={<AppShell />}>
                 <Route path="/engineer/dashboard" element={<EngineerDashboard />} />
-                <Route path="/engineer/tickets" element={<AdminTickets />} />
-                <Route path="/engineer/profile" element={<AdminProfile />} />
+                <Route path="/engineer/tickets" element={<EngineerTickets />} />
+                <Route path="/engineer/tickets/:id" element={<EngineerTicketDetail />} />
+                <Route path="/engineer/profile" element={<EngineerProfile />} />
               </Route>
             </Route>
 

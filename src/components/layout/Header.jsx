@@ -1,9 +1,14 @@
-﻿import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Bell, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import { useNavigate } from 'react-router-dom';
 import NotificationDrawer from '../admin/NotificationDrawer';
+import EngineerNotificationDrawer from '../engineer/EngineerNotificationDrawer';
 import { useAdminNotifications } from '../../hooks/admin/useAdminNotifications';
+import { useEngineerNotifications } from '../../hooks/engineer/useEngineerNotifications';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '../../context/ToastContext';
 
 export default function Header({ title, breadcrumb }) {
   const { role, clearTokens } = useAuthStore();
@@ -13,8 +18,60 @@ export default function Header({ title, breadcrumb }) {
   const menuRef = useRef(null);
 
   const isAdmin = role === 'ADMIN';
+  const isEngineer = role === 'ENGINEER';
+
   const { data: adminNotifications } = useAdminNotifications({ enabled: isAdmin });
-  const unreadCount = isAdmin ? (adminNotifications?.filter(n => !n.is_read)?.length || 0) : 0;
+  const { data: engineerNotifications } = useEngineerNotifications({ enabled: isEngineer });
+
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  useWebSocket((payload) => {
+    // Some backends wrap the event in a 'data' property.
+    const actualNotif = payload?.data ? payload.data : payload;
+
+    // Ensure the notification has the required fields for the UI
+    const newNotif = {
+      ...actualNotif,
+      id: actualNotif?.id || Date.now(),
+      is_read: false,
+      message: actualNotif?.message || actualNotif?.content || actualNotif?.text || JSON.stringify(payload),
+      created_at: actualNotif?.created_at || new Date().toISOString()
+    };
+
+    if (isAdmin) {
+      queryClient.setQueryData(['admin', 'notifications'], (oldData) => {
+        if (!oldData) return [newNotif];
+        if (Array.isArray(oldData)) return [newNotif, ...oldData];
+        if (oldData.items) return { ...oldData, items: [newNotif, ...oldData.items] };
+        return [newNotif];
+      });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'tickets'] });
+    }
+    
+    if (isEngineer) {
+      queryClient.setQueryData(['engineer', 'notifications'], (oldData) => {
+        if (!oldData) return [newNotif];
+        if (Array.isArray(oldData)) return [newNotif, ...oldData];
+        if (oldData.items) return { ...oldData, items: [newNotif, ...oldData.items] };
+        return [newNotif];
+      });
+      queryClient.invalidateQueries({ queryKey: ['engineer', 'tickets'] });
+    }
+    
+    const title = newNotif.title || newNotif.message || 'Nouvelle notification';
+    toast.info(title);
+  });
+
+  // Extract arrays safely depending on backend response shape (Array vs { items: Array })
+  const adminNotifsArray = Array.isArray(adminNotifications) ? adminNotifications : (adminNotifications?.items || []);
+  const engNotifsArray = Array.isArray(engineerNotifications) ? engineerNotifications : (engineerNotifications?.items || []);
+
+  const unreadCount = isAdmin
+    ? adminNotifsArray.filter(n => !n.is_read).length
+    : isEngineer
+      ? engNotifsArray.filter(n => !n.is_read).length
+      : 0;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -42,6 +99,10 @@ export default function Header({ title, breadcrumb }) {
     navigate(`/${rolePath}/profile`);
   };
 
+  const toggleDrawer = () => {
+    setDrawerOpen((prev) => !prev);
+  };
+
   return (
     <>
       <header className="h-[60px] bg-white border-b border-border flex items-center justify-between px-8 flex-shrink-0 sticky top-0 z-30">
@@ -60,7 +121,7 @@ export default function Header({ title, breadcrumb }) {
         {/* Right: bell + avatar */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setDrawerOpen(true)}
+            onClick={toggleDrawer}
             className="relative w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:bg-surface-muted hover:text-text-secondary transition-colors"
             aria-label="Notifications"
           >
@@ -105,8 +166,12 @@ export default function Header({ title, breadcrumb }) {
         </div>
       </header>
 
-      <NotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      {/* Role-aware notification drawer */}
+      {isEngineer ? (
+        <EngineerNotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      ) : (
+        <NotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      )}
     </>
   );
 }
-

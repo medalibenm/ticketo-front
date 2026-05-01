@@ -1,4 +1,4 @@
-﻿import Sidebar from './Sidebar';
+import Sidebar from './Sidebar';
 import Header from './Header';
 import { Outlet, useLocation } from 'react-router-dom';
 
@@ -9,8 +9,12 @@ const breadcrumbMap = {
   '/admin/misassignments': 'Admin / Misassignments',
   '/admin/kb': 'Admin / Knowledge Base',
   '/admin/logs/ai': 'Admin / AI Logs',
-  '/admin/logs/audit': "Admin / Audit Logs",
+  '/admin/logs/audit': 'Admin / Audit Logs',
   '/admin/profile': 'Admin / Profil',
+  // Engineer
+  '/engineer/dashboard': 'Ingénieur / Tableau de bord',
+  '/engineer/tickets': 'Ingénieur / Tickets assignés',
+  '/engineer/profile': 'Ingénieur / Profil',
 };
 
 const titleMap = {
@@ -20,8 +24,12 @@ const titleMap = {
   '/admin/misassignments': 'Misassignments',
   '/admin/kb': 'Knowledge Base',
   '/admin/logs/ai': 'AI Logs',
-  '/admin/logs/audit': "Audit Logs",
+  '/admin/logs/audit': 'Audit Logs',
   '/admin/profile': 'Profil',
+  // Engineer
+  '/engineer/dashboard': 'Tableau de bord',
+  '/engineer/tickets': 'Tickets assignés',
+  '/engineer/profile': 'Mon Profil',
 };
 
 export default function AppShell() {

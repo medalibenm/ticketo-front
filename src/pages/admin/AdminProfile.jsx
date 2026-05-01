@@ -10,17 +10,30 @@ import { RoleBadge } from '../../components/ui/Badge';
 export default function AdminProfile() {
   const { data: profile, isLoading: loading } = useAdminProfile();
   const { mutate: updateProfile, isPending: saving } = useUpdateAdminProfile();
+  const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', password: '' });
+  const [form, setForm] = useState({ name: '', password: '', confirm_password: '' });
 
   const startEdit = () => {
-    setForm({ name: profile.name, password: '' });
+    setForm({ name: profile.name, password: '', confirm_password: '' });
     setEditing(true);
   };
 
   const handleSave = () => {
-    updateProfile(form, {
-      onSuccess: () => setEditing(false)
+    if (form.password && form.password !== form.confirm_password) {
+      toast.error('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    
+    updateProfile({
+      name: form.name,
+      password: form.password || undefined,
+      confirm_password: form.password || undefined,
+    }, {
+      onSuccess: () => {
+        setEditing(false);
+        toast.success('Profil mis à jour.');
+      }
     });
   };
 
@@ -74,6 +87,15 @@ export default function AdminProfile() {
                     onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
                     placeholder="Laisser vide pour ne pas changer"
                   />
+                  {form.password && (
+                    <Input
+                      label="Confirmer le mot de passe"
+                      type="password"
+                      value={form.confirm_password}
+                      onChange={(e) => setForm((p) => ({ ...p, confirm_password: e.target.value }))}
+                      placeholder="Confirmer votre nouveau mot de passe"
+                    />
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-[13px] font-medium text-text-secondary mb-1">Email</p>

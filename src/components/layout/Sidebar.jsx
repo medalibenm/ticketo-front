@@ -1,9 +1,9 @@
-﻿import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import clsx from 'clsx';
 import {
   LayoutDashboard, Ticket, Users, Flag,
-  BookOpen, Bot, ClipboardList,
+  BookOpen, Bot, ClipboardList, UserCircle,
 } from 'lucide-react';
 
 const adminLinks = [
@@ -23,7 +23,8 @@ const developerLinks = [
 
 const engineerLinks = [
   { to: '/engineer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/engineer/tickets', label: 'Assigned Tickets', icon: Ticket },
+  { to: '/engineer/tickets', label: 'Mes tickets', icon: Ticket },
+  { to: '/engineer/profile', label: 'Profil', icon: UserCircle },
 ];
 
 const roleLinks = { ADMIN: adminLinks, DEVELOPER: developerLinks, ENGINEER: engineerLinks };
