@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEngineerStats } from '../../hooks/engineer/useEngineerStats';
 import { useEngineerTickets } from '../../hooks/engineer/useEngineerTickets';
+import { useEngineerProfile } from '../../hooks/engineer/useEngineerProfile';
 import { StatusBadge } from '../../components/ui/Badge';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import {
@@ -29,6 +30,8 @@ const CATEGORY_LABELS = {
 export default function EngineerDashboard() {
   const { data: stats, isLoading: statsLoading } = useEngineerStats();
   const { data: ticketsData, isLoading: ticketsLoading } = useEngineerTickets({ skip: 0, limit: 5 });
+  const { data: profile } = useEngineerProfile();
+  const isAvailable = profile?.disponibilite !== false;
 
   const aiPrecisionVal = stats?.ai_precision || 0;
   const aiPrecisionDash = aiPrecisionVal / 100;
@@ -71,8 +74,8 @@ export default function EngineerDashboard() {
         <div>
           <h1 className="text-[22px] font-bold text-text-primary tracking-tight">Tableau de bord</h1>
           <div className="flex items-center gap-2 mt-1">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-text-muted font-medium">En ligne</span>
+            <span className={clsx('inline-block w-2 h-2 rounded-full', isAvailable ? 'bg-green-500 animate-pulse' : 'bg-gray-400')} />
+            <span className="text-xs text-text-muted font-medium">{isAvailable ? 'Disponible' : 'Indisponible'}</span>
           </div>
         </div>
       </div>

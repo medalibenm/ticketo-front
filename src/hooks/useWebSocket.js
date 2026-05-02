@@ -22,6 +22,7 @@ export function useWebSocket(onNotification) {
       ws.onmessage = (event) => {
         try {
           const notification = JSON.parse(event.data)
+          if (notification.type?.toLowerCase() === 'ping') return
           onNotification(notification)
         } catch {}
       }

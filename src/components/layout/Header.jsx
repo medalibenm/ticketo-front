@@ -27,17 +27,24 @@ export default function Header({ title, breadcrumb }) {
   const toast = useToast();
 
   useWebSocket((payload) => {
-    // Some backends wrap the event in a 'data' property.
     const actualNotif = payload?.data ? payload.data : payload;
 
-    // Ensure the notification has the required fields for the UI
+    // Drop any ping heartbeat — by type OR by message content (backend test messages)
+    const rawMsg = actualNotif?.message || actualNotif?.content || actualNotif?.text || '';
+    if (
+      actualNotif?.type?.toLowerCase() === 'ping' ||
+      /^(test[\s:_-]*)?ping$/i.test(rawMsg.trim())
+    ) return;
+
     const newNotif = {
       ...actualNotif,
       id: actualNotif?.id || Date.now(),
       is_read: false,
-      message: actualNotif?.message || actualNotif?.content || actualNotif?.text || JSON.stringify(payload),
+      message: rawMsg,
       created_at: actualNotif?.created_at || new Date().toISOString()
     };
+
+    if (!newNotif.message) return;
 
     if (isAdmin) {
       queryClient.setQueryData(['admin', 'notifications'], (oldData) => {
@@ -48,7 +55,7 @@ export default function Header({ title, breadcrumb }) {
       });
       queryClient.invalidateQueries({ queryKey: ['admin', 'tickets'] });
     }
-    
+
     if (isEngineer) {
       queryClient.setQueryData(['engineer', 'notifications'], (oldData) => {
         if (!oldData) return [newNotif];
@@ -57,15 +64,32 @@ export default function Header({ title, breadcrumb }) {
         return [newNotif];
       });
       queryClient.invalidateQueries({ queryKey: ['engineer', 'tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['engineer', 'profile'] });
     }
-    
-    const title = newNotif.title || newNotif.message || 'Nouvelle notification';
-    toast.info(title);
+
+    if (isAdmin) {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    }
+
+    toast.info(newNotif.title || newNotif.message);
   });
 
-  // Extract arrays safely depending on backend response shape (Array vs { items: Array })
-  const adminNotifsArray = Array.isArray(adminNotifications) ? adminNotifications : (adminNotifications?.items || []);
-  const engNotifsArray = Array.isArray(engineerNotifications) ? engineerNotifications : (engineerNotifications?.items || []);
+  // Normalise whatever shape the backend returns into a plain array
+  const toArray = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    for (const key of ['items', 'notifications', 'data', 'results']) {
+      if (Array.isArray(data[key])) return data[key];
+    }
+    return [];
+  };
+
+  const isPingNotif = (n) =>
+    n.type?.toLowerCase() === 'ping' ||
+    /^(test[\s:_-]*)?ping$/i.test((n.message || '').trim());
+
+  const adminNotifsArray = toArray(adminNotifications).filter(n => !isPingNotif(n));
+  const engNotifsArray = toArray(engineerNotifications).filter(n => !isPingNotif(n));
 
   const unreadCount = isAdmin
     ? adminNotifsArray.filter(n => !n.is_read).length

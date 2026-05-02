@@ -52,6 +52,9 @@ export const adminService = {
   getStats: () =>
     api.get('/admin/stats').then((r) => r.data),
 
+  getEngineerStats: (engineerId) =>
+    api.get(`/admin/stats/engineers/${engineerId}`).then((r) => r.data),
+
   getKnowledgeBase: (params) =>
     api.get('/admin/kb', { params }).then((r) => r.data),
 

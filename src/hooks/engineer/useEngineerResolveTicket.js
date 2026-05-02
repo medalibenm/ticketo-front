@@ -8,6 +8,7 @@ export const useEngineerResolveTicket = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['engineer', 'tickets'] });
       qc.invalidateQueries({ queryKey: ['engineer', 'stats'] });
+      qc.invalidateQueries({ queryKey: ['engineer', 'profile'] });
     },
   });
 };

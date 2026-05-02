@@ -13,7 +13,7 @@ const adminLinks = [
   { to: '/admin/misassignments', label: 'Misassignments', icon: Flag },
   { to: '/admin/kb', label: 'Knowledge Base', icon: BookOpen },
   { to: '/admin/logs/ai', label: 'AI Logs', icon: Bot },
-  { to: '/admin/logs/audit', label: "Audit Logs", icon: ClipboardList },
+  { to: '/admin/logs/audit', label: 'Audit Logs', icon: ClipboardList },
 ];
 
 const developerLinks = [
@@ -29,18 +29,36 @@ const engineerLinks = [
 
 const roleLinks = { ADMIN: adminLinks, DEVELOPER: developerLinks, ENGINEER: engineerLinks };
 
+const rolePanelLabel = {
+  ADMIN: 'Panneau Admin',
+  ENGINEER: 'Espace Ingénieur',
+  DEVELOPER: 'Portail Développeur',
+};
+
 export default function Sidebar() {
   const { role } = useAuthStore();
   const links = (role && roleLinks[role]) || adminLinks;
+  const panelLabel = (role && rolePanelLabel[role]) || 'Panneau Admin';
 
   return (
-    <aside className="w-[220px] min-h-screen bg-surface border-r border-border flex flex-col flex-shrink-0">
-      {/* Logo */}
-      <div className="px-5 pt-6 pb-5 border-b border-divider">
-        <div className="flex items-center gap-2.5">
-          <div>
-            <p className="text-text-primary font-bold text-xl tracking-wide leading-tight">Ticketo</p>
+    <aside className="w-[230px] h-full flex flex-col flex-shrink-0" style={{ backgroundColor: '#002D72' }}>
+      {/* Branding */}
+      <div className="px-5 pt-6 pb-5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div className="flex items-center gap-3 mb-3">
+          <img src="/at-logo.svg" alt="AT" className="w-9 h-9 flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-white font-bold text-[15px] leading-tight tracking-wide">Algérie Télécom</p>
+            <p className="text-[11px] leading-tight mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              Hosting Ticket Management
+            </p>
           </div>
+        </div>
+        <div
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide uppercase"
+          style={{ backgroundColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+          {panelLabel}
         </div>
       </div>
 
@@ -54,8 +72,8 @@ export default function Sidebar() {
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-btn text-sm font-medium transition-colors duration-150',
                 isActive
-                  ? 'bg-primary-light text-primary'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-surface-muted'
+                  ? 'text-white bg-white/[0.15]'
+                  : 'text-white/60 hover:text-white hover:bg-white/[0.08]'
               )
             }
           >

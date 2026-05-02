@@ -13,7 +13,18 @@ function formatTime(dateStr) {
 
 export default function EngineerNotificationDrawer({ open, onClose }) {
   const { data, isLoading: loading } = useEngineerNotifications({ enabled: open });
-  const notifications = Array.isArray(data) ? data : (data?.items || []);
+  const toArray = (d) => {
+    if (!d) return [];
+    if (Array.isArray(d)) return d;
+    for (const key of ['items', 'notifications', 'data', 'results']) {
+      if (Array.isArray(d[key])) return d[key];
+    }
+    return [];
+  };
+  const notifications = toArray(data).filter(n =>
+    n.type?.toLowerCase() !== 'ping' &&
+    !/^(test[\s:_-]*)?ping$/i.test((n.message || '').trim())
+  );
   const { mutateAsync: markAsRead } = useMarkEngineerNotificationRead();
   const toast = useToast();
   const navigate = useNavigate();
@@ -111,7 +122,7 @@ export default function EngineerNotificationDrawer({ open, onClose }) {
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={clsx('text-sm', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
+                    <p className={clsx('text-sm line-clamp-2', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
                       {n.message}
                     </p>
                     <p className="text-xs text-text-muted mt-1">{formatTime(n.created_at)}</p>

@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
 import { useAdminNotifications } from '../../hooks/admin/useAdminNotifications';
 import { useMarkAdminNotificationRead } from '../../hooks/admin/useMarkAdminNotificationRead';
 import { useToast } from '../../context/ToastContext';
+import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -12,15 +12,34 @@ function formatTime(dateStr) {
 
 export default function NotificationDrawer({ open, onClose }) {
   const { data, isLoading: loading } = useAdminNotifications({ enabled: open });
-  const notifications = Array.isArray(data) ? data : (data?.items || []);
+  const toArray = (d) => {
+    if (!d) return [];
+    if (Array.isArray(d)) return d;
+    for (const key of ['items', 'notifications', 'data', 'results']) {
+      if (Array.isArray(d[key])) return d[key];
+    }
+    return [];
+  };
+  const notifications = toArray(data).filter(n =>
+    n.type?.toLowerCase() !== 'ping' &&
+    !/^(test[\s:_-]*)?ping$/i.test((n.message || '').trim())
+  );
   const { mutateAsync: markAsRead } = useMarkAdminNotificationRead();
   const toast = useToast();
+  const navigate = useNavigate();
 
-  const markRead = async (id) => {
-    try {
-      await markAsRead(id);
-    } catch {
-      toast.error('Error updating.');
+  const handleNotificationClick = async (n) => {
+    if (!n.is_read) {
+      try {
+        await markAsRead(n.id);
+      } catch {
+        toast.error('Error updating.');
+      }
+    }
+    // Misassignment notifications → go to the misassignment list
+    if (/signalement|misassign/i.test(n.message)) {
+      navigate('/admin/misassignments');
+      onClose();
     }
   };
 
@@ -86,13 +105,12 @@ export default function NotificationDrawer({ open, onClose }) {
               {notifications.map((n) => (
                 <li
                   key={n.id}
-                  onClick={() => !n.is_read && markRead(n.id)}
+                  onClick={() => handleNotificationClick(n)}
                   className={clsx(
                     'flex gap-3 px-5 py-4 border-b border-divider cursor-pointer transition-colors',
                     n.is_read ? 'hover:bg-surface-muted' : 'hover:bg-primary-light bg-[#FAFCFF]'
                   )}
                 >
-                  {/* Unread dot */}
                   <div className="flex-shrink-0 mt-1">
                     {!n.is_read
                       ? <span className="block w-2 h-2 rounded-full bg-accent mt-0.5" />
@@ -100,7 +118,7 @@ export default function NotificationDrawer({ open, onClose }) {
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={clsx('text-sm', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
+                    <p className={clsx('text-sm line-clamp-2', n.is_read ? 'text-text-secondary' : 'text-text-primary font-medium')}>
                       {n.message}
                     </p>
                     <p className="text-xs text-text-muted mt-1">{formatTime(n.created_at)}</p>

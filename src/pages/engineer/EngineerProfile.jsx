@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { RoleBadge } from '../../components/ui/Badge';
 import { useToast } from '../../context/ToastContext';
-import { Mail, Shield, Wrench, Edit3 } from 'lucide-react';
+import { Mail, Shield, Wrench, Edit3, ToggleLeft, ToggleRight } from 'lucide-react';
 import clsx from 'clsx';
 
 const NIVEAU_COLORS = {
@@ -50,6 +50,16 @@ export default function EngineerProfile() {
   const handleCancel = () => {
     setForm({ name: profile?.name || '', password: '', confirm_password: '' });
     setEditing(false);
+  };
+
+  const handleToggleAvailability = async () => {
+    const next = profile.disponibilite === false ? true : false;
+    try {
+      await updateProfile.mutateAsync({ disponibilite: next });
+      toast.success(next ? 'Vous êtes maintenant disponible.' : 'Vous êtes maintenant indisponible.');
+    } catch {
+      toast.error('Erreur lors de la mise à jour.');
+    }
   };
 
   if (isLoading) {
@@ -121,13 +131,22 @@ export default function EngineerProfile() {
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-text-secondary">
               <Wrench size={11} /> {profile.specialite || 'Non spécifié'}
             </span>
-            <span className={clsx(
-              'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium',
-              profile.disponibilite ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
-            )}>
-              <span className={clsx('w-1.5 h-1.5 rounded-full', profile.disponibilite ? 'bg-green-500' : 'bg-gray-400')} />
-              {profile.disponibilite ? 'Disponible' : 'Indisponible'}
-            </span>
+            <button
+              onClick={handleToggleAvailability}
+              disabled={updateProfile.isPending}
+              title="Cliquez pour changer votre disponibilité"
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer',
+                profile.disponibilite === false
+                  ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  : 'bg-green-50 text-green-700 hover:bg-green-100'
+              )}
+            >
+              {profile.disponibilite === false
+                ? <ToggleLeft size={13} />
+                : <ToggleRight size={13} />}
+              {profile.disponibilite === false ? 'Indisponible' : 'Disponible'}
+            </button>
           </div>
         </div>
       </div>
