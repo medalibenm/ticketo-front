@@ -3,7 +3,11 @@
     "allow": [
       "Bash(git log *)",
       "Read(//d/bakcend/**)",
-      "Read(//d/ai_ticket_smangment/**)"
+      "Read(//d/ai_ticket_smangment/**)",
+      "Bash(python -c ' *)",
+      "Bash(powershell -Command \"Get-Item 'D:\\\\atm_front\\\\ticketo-front\\\\loginpage\\\\src\\\\imports\\\\*.png' | Select-Object Name, Length\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)"
     ]
   }
 }
