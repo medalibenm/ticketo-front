@@ -555,13 +555,20 @@ Each KPI card: white rounded card, large bold number in brand blue, label in mut
 
 ---
 
-### SCREEN: Engineer Dashboard — Tickets assignés
+### SCREEN: Engineer Dashboard
 **Route:** `/engineer/dashboard`
-**API:** `GET /engineer/tickets?skip=0&limit=10` → `PaginatedResponse[TicketOut]`
+**API STATS:** `GET /engineer/stats` → `{ total_assigned, resolved, misassigned, awaiting_clarification }`
+**API TICKETS:** `GET /engineer/tickets?skip=0&limit=10` → `PaginatedResponse[TicketOut]`
 
-**UI:**
-- Page title: "Mes Tickets Assignés"
-- **Summary strip:** ticket counts — IN_PROGRESS (blue), AWAITING_CLARIFICATION (yellow), RESOLVED (green)
+**UI — KPI Row (4 cards in a responsive grid):**
+- **Tickets Assignés:** Total tickets in progress (blue)
+- **Tickets Résolus:** Resolved by this engineer (green)
+- **Mauvaises Assignations:** Misassigned tickets signaled by this engineer (red/yellow)
+- **En Attente de Clarification:** Tickets waiting for developer input (yellow)
+Each KPI card: white rounded card, large bold number, label in muted text, corresponding colored icon.
+
+**UI — Table des Tickets:**
+- Page Section Title: "Mes Tickets Assignés"
 - **Filter bar:** Status dropdown + "Filtrer" button
 - **Data table:**
   - Columns: `#`, `Titre`, `Catégorie`, `Statut` (badge), `Développeur ID`, `Créé le`, `Actions`

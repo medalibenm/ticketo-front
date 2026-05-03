@@ -14,6 +14,7 @@ import { Input, Select, Toggle } from '../../components/ui/Input';
 import { Modal, ConfirmDialog } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
 import { SkeletonTable } from '../../components/ui/Skeleton';
+import UserDetailDrawer from '../../components/admin/UserDetailDrawer';
 import { useToast } from '../../context/ToastContext';
 import { Pencil, Trash2 } from 'lucide-react';
 
@@ -64,6 +65,9 @@ export default function AdminUsers() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // User detail drawer
+  const [detailUser, setDetailUser] = useState(null);
+
   const openCreate = (type) => {
     setModal(type);
     setEditTarget(null);
@@ -95,6 +99,7 @@ export default function AdminUsers() {
           password: form.password,
           specialite: form.specialite,
           niveau: form.niveau,
+          disponibilite: true,
         });
         setPage(Math.max(0, Math.ceil((total + 1) / limit) - 1));
       } else if (modal === 'developer') {
@@ -199,7 +204,11 @@ export default function AdminUsers() {
                   </tr>
                 )}
                 {items.map((user) => (
-                  <tr key={user.id} className="border-t border-divider hover:bg-surface-muted h-[52px] transition-colors">
+                  <tr
+                    key={user.id}
+                    onClick={() => setDetailUser(user)}
+                    className="border-t border-divider hover:bg-surface-muted h-[52px] transition-colors cursor-pointer"
+                  >
                     <td className="px-4 py-3 font-mono text-[13px] text-text-secondary">{user.id}</td>
                     <td className="px-4 py-3 font-medium text-sm text-text-primary whitespace-nowrap">{user.name}</td>
                     <td className="px-4 py-3 text-sm text-text-secondary">{user.email}</td>
@@ -207,14 +216,14 @@ export default function AdminUsers() {
                     <td className="px-4 py-3 text-sm text-text-secondary">{user.entreprise || user.specialite || '-'}</td>
                     <td className="px-4 py-3 text-sm text-text-secondary">{user.niveau || '-'}</td>
                     <td className="px-4 py-3">
-                      {user.disponibilite !== null
-                        ? <span className={`text-xs font-medium ${user.disponibilite ? 'text-success' : 'text-danger'}`}>
-                            {user.disponibilite ? 'Available' : 'Unavailable'}
+                      {user.role === 'ENGINEER'
+                        ? <span className={`text-xs font-medium ${user.disponibilite === false ? 'text-danger' : 'text-success'}`}>
+                            {user.disponibilite === false ? 'Unavailable' : 'Available'}
                           </span>
                         : <span className="text-text-muted text-xs">-</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">{formatDate(user.created_at)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         {(user.role === 'ENGINEER' || user.role === 'DEVELOPER') && (
                           <button
@@ -296,6 +305,13 @@ export default function AdminUsers() {
           )}
         </div>
       </Modal>
+
+      {/* User detail drawer */}
+      <UserDetailDrawer
+        user={detailUser}
+        open={!!detailUser}
+        onClose={() => setDetailUser(null)}
+      />
 
       {/* Delete confirm */}
       <ConfirmDialog

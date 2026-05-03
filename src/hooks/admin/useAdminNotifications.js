@@ -5,6 +5,7 @@ export const useAdminNotifications = (options = {}) => {
   return useQuery({
     queryKey: ['admin', 'notifications'],
     queryFn: () => adminService.getNotifications(),
+    refetchInterval: options.enabled === false ? false : 5000,
     ...options
   });
 };

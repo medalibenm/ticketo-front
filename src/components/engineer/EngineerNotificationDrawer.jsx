@@ -1,5 +1,6 @@
-import { useAdminNotifications } from '../../hooks/admin/useAdminNotifications';
-import { useMarkAdminNotificationRead } from '../../hooks/admin/useMarkAdminNotificationRead';
+import { useEffect } from 'react';
+import { useEngineerNotifications } from '../../hooks/engineer/useEngineerNotifications';
+import { useMarkEngineerNotificationRead } from '../../hooks/engineer/useMarkEngineerNotificationRead';
 import { useToast } from '../../context/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
@@ -10,8 +11,8 @@ function formatTime(dateStr) {
   return d.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-export default function NotificationDrawer({ open, onClose }) {
-  const { data, isLoading: loading } = useAdminNotifications({ enabled: open });
+export default function EngineerNotificationDrawer({ open, onClose }) {
+  const { data, isLoading: loading } = useEngineerNotifications({ enabled: open });
   const toArray = (d) => {
     if (!d) return [];
     if (Array.isArray(d)) return d;
@@ -24,7 +25,7 @@ export default function NotificationDrawer({ open, onClose }) {
     n.type?.toLowerCase() !== 'ping' &&
     !/^(test[\s:_-]*)?ping$/i.test((n.message || '').trim())
   );
-  const { mutateAsync: markAsRead } = useMarkAdminNotificationRead();
+  const { mutateAsync: markAsRead } = useMarkEngineerNotificationRead();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -33,35 +34,37 @@ export default function NotificationDrawer({ open, onClose }) {
       try {
         await markAsRead(n.id);
       } catch {
-        toast.error('Error updating.');
+        toast.error('Erreur lors de la mise à jour.');
       }
     }
-    // Misassignment notifications → go to the misassignment list
-    if (/signalement|misassign/i.test(n.message)) {
-      navigate('/admin/misassignments');
-      onClose();
+
+    // Try to extract a ticket ID from the message (e.g. "Ticket #42..." or "numéro 42")
+    const match = n.message.match(/(?:#|numéro\s*|ticket\s*)(\d+)/i);
+    if (match && match[1]) {
+      navigate(`/engineer/tickets/${match[1]}`);
+      onClose(); // Close the drawer on navigation
     }
   };
 
   const markAllRead = async () => {
     try {
-      const waitlist = notifications.filter((n) => !n.is_read).map((n) => markAsRead(n.id));
-      if (waitlist.length === 0) return;
-      await Promise.all(waitlist);
-      toast.success('All notifications marked as read.');
+      const unread = notifications.filter((n) => !n.is_read);
+      if (unread.length === 0) return;
+      await Promise.all(unread.map((n) => markAsRead(n.id)));
+      toast.success('Toutes les notifications marquées comme lues.');
     } catch {
-      toast.error('Error updating.');
+      toast.error('Erreur lors de la mise à jour.');
     }
   };
 
   return (
     <>
-      {/* backdrop */}
+      {/* Backdrop */}
       {open && (
         <div className="fixed inset-0 z-40 bg-black/10 animate-fade-in" onClick={onClose} />
       )}
 
-      {/* drawer */}
+      {/* Drawer */}
       <div
         className={clsx(
           'fixed right-0 top-0 h-full w-[340px] bg-white shadow-[-4px_0_24px_rgba(0,0,0,0.08)] z-50 flex flex-col transition-transform duration-250',
@@ -76,7 +79,7 @@ export default function NotificationDrawer({ open, onClose }) {
               onClick={markAllRead}
               className="text-xs text-primary hover:underline font-medium"
             >
-              Mark all as read
+              Tout marquer comme lu
             </button>
             <button onClick={onClose} className="text-text-muted hover:text-text-secondary transition-colors">
               <X size={18} />
@@ -95,10 +98,10 @@ export default function NotificationDrawer({ open, onClose }) {
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center px-6">
               <div className="w-12 h-12 rounded-full bg-surface-muted flex items-center justify-center mb-3">
-                <span className="text-2xl">💡</span>
+                <span className="text-2xl">🔔</span>
               </div>
-              <p className="text-sm font-medium text-text-secondary">No notifications</p>
-              <p className="text-xs text-text-muted mt-1">You are up to date!</p>
+              <p className="text-sm font-medium text-text-secondary">Aucune notification</p>
+              <p className="text-xs text-text-muted mt-1">Vous êtes à jour !</p>
             </div>
           ) : (
             <ul>
@@ -111,6 +114,7 @@ export default function NotificationDrawer({ open, onClose }) {
                     n.is_read ? 'hover:bg-surface-muted' : 'hover:bg-primary-light bg-[#FAFCFF]'
                   )}
                 >
+                  {/* Unread dot */}
                   <div className="flex-shrink-0 mt-1">
                     {!n.is_read
                       ? <span className="block w-2 h-2 rounded-full bg-accent mt-0.5" />
@@ -132,4 +136,3 @@ export default function NotificationDrawer({ open, onClose }) {
     </>
   );
 }
-

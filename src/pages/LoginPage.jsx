@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useLogin } from '../hooks/auth/useLogin';
 import { Button } from '../components/ui/Button';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
 
 export default function LoginPage() {
   const { mutate: login, isPending: loading } = useLogin();
+  const toast = useToast();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
