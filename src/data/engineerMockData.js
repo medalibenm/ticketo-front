@@ -38,11 +38,11 @@ export const mockEngineerTickets = [
     description:
       'Users are reporting timeouts exceeding 5000ms when attempting to authenticate between 09:00 and 11:00 CET. Initial logs suggest a bottleneck in the JWT validation handshake. This is impacting 15% of the total user base. No recent deployments have been flagged as the cause.',
     analysis: {
-      detected_category: 'API_GATEWAY',
+      categorie_detectee: 'API_GATEWAY',
       decision: 'ESCALATE_DIRECTLY',
-      reason: 'High severity latency in authentication flow affecting significant user base percentage.',
-      richness_score: 0.68,
-      similarity_score: 0.45,
+      decision_reason: 'High severity latency in authentication flow affecting significant user base percentage.',
+      score_richesse: 0.68,
+      score_similarite: 0.45,
     },
     clarification_session: {
       status: 'CLOSED',
@@ -58,8 +58,8 @@ export const mockEngineerTickets = [
     engineer_response: null,
     ai_response: null,
     attachments: [
-      { id: 1, filename: 'auth_service_logs.txt', file_type: 'text/plain' },
-      { id: 2, filename: 'redis_metrics_screenshot.png', file_type: 'image/png' },
+      { id: 1, file_name: 'auth_service_logs.txt', file_type: 'text/plain', file_url: '/uploads/1/auth_service_logs.txt' },
+      { id: 2, file_name: 'redis_metrics_screenshot.png', file_type: 'image/png', file_url: '/uploads/2/redis_metrics_screenshot.png' },
     ],
   },
   {
@@ -74,11 +74,11 @@ export const mockEngineerTickets = [
     description:
       'Production S3 bucket `at-prod-assets` returning 403 Forbidden for GET requests from the CDN distribution. IAM policy was last updated 3 days ago during a routine security audit.',
     analysis: {
-      detected_category: 'STORAGE',
+      categorie_detectee: 'STORAGE',
       decision: 'ESCALATE_DIRECTLY',
-      reason: 'S3 permission mismatch likely caused by recent IAM policy update.',
-      richness_score: 0.82,
-      similarity_score: 0.61,
+      decision_reason: 'S3 permission mismatch likely caused by recent IAM policy update.',
+      score_richesse: 0.82,
+      score_similarite: 0.61,
     },
     clarification_session: null,
     engineer_response: null,
@@ -97,11 +97,11 @@ export const mockEngineerTickets = [
     description:
       'Token revocation endpoint not properly invalidating refresh tokens. Revoked tokens can still be used to generate new access tokens for up to 30 minutes.',
     analysis: {
-      detected_category: 'SECURITY',
+      categorie_detectee: 'SECURITY',
       decision: 'OPEN_CLARIFICATION',
-      reason: 'Need more context on token storage mechanism and revocation list implementation.',
-      richness_score: 0.55,
-      similarity_score: 0.33,
+      decision_reason: 'Need more context on token storage mechanism and revocation list implementation.',
+      score_richesse: 0.55,
+      score_similarite: 0.33,
     },
     clarification_session: {
       status: 'OPEN',
@@ -143,11 +143,11 @@ export const mockEngineerTickets = [
     description:
       'PostgreSQL connection pool (max 20 connections) is being exhausted during peak traffic, causing cascade failures across all API endpoints.',
     analysis: {
-      detected_category: 'DATABASE',
+      categorie_detectee: 'DATABASE',
       decision: 'ESCALATE_DIRECTLY',
-      reason: 'Critical infrastructure issue requiring immediate attention.',
-      richness_score: 0.91,
-      similarity_score: 0.72,
+      decision_reason: 'Critical infrastructure issue requiring immediate attention.',
+      score_richesse: 0.91,
+      score_similarite: 0.72,
     },
     clarification_session: null,
     engineer_response: {
@@ -210,11 +210,11 @@ export const mockEngineerTickets = [
     description:
       'After upgrading Nginx from 1.24 to 1.25, the `proxy_pass` directives for the microservices backend are returning 502 Bad Gateway intermittently.',
     analysis: {
-      detected_category: 'SERVER_OS',
+      categorie_detectee: 'SERVER_OS',
       decision: 'ESCALATE_DIRECTLY',
-      reason: 'Configuration-level issue post-upgrade requiring manual review.',
-      richness_score: 0.74,
-      similarity_score: 0.58,
+      decision_reason: 'Configuration-level issue post-upgrade requiring manual review.',
+      score_richesse: 0.74,
+      score_similarite: 0.58,
     },
     clarification_session: null,
     engineer_response: null,

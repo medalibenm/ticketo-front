@@ -4,8 +4,10 @@ import { useAuthStore } from '../../store/auth.store';
 import { useNavigate } from 'react-router-dom';
 import NotificationDrawer from '../admin/NotificationDrawer';
 import EngineerNotificationDrawer from '../engineer/EngineerNotificationDrawer';
+import DeveloperNotificationDrawer from '../developer/DeveloperNotificationDrawer';
 import { useAdminNotifications } from '../../hooks/admin/useAdminNotifications';
 import { useEngineerNotifications } from '../../hooks/engineer/useEngineerNotifications';
+import { useDeveloperNotifications } from '../../hooks/developer/useDeveloperNotifications';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../../context/ToastContext';
@@ -19,12 +21,20 @@ export default function Header({ title, breadcrumb }) {
 
   const isAdmin = role === 'ADMIN';
   const isEngineer = role === 'ENGINEER';
+  const isDeveloper = role === 'DEVELOPER';
 
   const { data: adminNotifications } = useAdminNotifications({ enabled: isAdmin });
   const { data: engineerNotifications } = useEngineerNotifications({ enabled: isEngineer });
+  const { data: developerNotifications } = useDeveloperNotifications({ enabled: isDeveloper });
 
   const queryClient = useQueryClient();
   const toast = useToast();
+
+  const extractTicketId = (notification) => {
+    const text = `${notification?.title || ''} ${notification?.message || notification?.content || ''}`;
+    const match = text.match(/(?:#|numéro\s*|ticket\s*)(\d+)/i);
+    return match?.[1] ? Number(match[1]) : null;
+  };
 
   useWebSocket((payload) => {
     const actualNotif = payload?.data ? payload.data : payload;
@@ -71,6 +81,20 @@ export default function Header({ title, breadcrumb }) {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     }
 
+    if (isDeveloper) {
+      const ticketId = extractTicketId(newNotif);
+      queryClient.setQueryData(['developer', 'notifications'], (oldData) => {
+        if (!oldData) return [newNotif];
+        if (Array.isArray(oldData)) return [newNotif, ...oldData];
+        if (oldData.items) return { ...oldData, items: [newNotif, ...oldData.items] };
+        return [newNotif];
+      });
+      queryClient.invalidateQueries({ queryKey: ['developer', 'tickets'] });
+      if (ticketId) {
+        queryClient.invalidateQueries({ queryKey: ['developer', 'tickets', ticketId] });
+      }
+    }
+
     toast.info(newNotif.title || newNotif.message);
   });
 
@@ -90,12 +114,15 @@ export default function Header({ title, breadcrumb }) {
 
   const adminNotifsArray = toArray(adminNotifications).filter(n => !isPingNotif(n));
   const engNotifsArray = toArray(engineerNotifications).filter(n => !isPingNotif(n));
+  const devNotifsArray = toArray(developerNotifications);
 
   const unreadCount = isAdmin
     ? adminNotifsArray.filter(n => !n.is_read).length
     : isEngineer
       ? engNotifsArray.filter(n => !n.is_read).length
-      : 0;
+      : isDeveloper
+        ? devNotifsArray.filter(n => !n.is_read).length
+        : 0;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -193,6 +220,8 @@ export default function Header({ title, breadcrumb }) {
       {/* Role-aware notification drawer */}
       {isEngineer ? (
         <EngineerNotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      ) : isDeveloper ? (
+        <DeveloperNotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       ) : (
         <NotificationDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       )}

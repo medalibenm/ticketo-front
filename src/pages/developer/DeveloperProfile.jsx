@@ -1,31 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useEngineerProfile } from '../../hooks/engineer/useEngineerProfile';
-import { useUpdateEngineerProfile } from '../../hooks/engineer/useUpdateEngineerProfile';
+import { useDeveloperProfile } from '../../hooks/developer/useDeveloperProfile';
+import { useUpdateDeveloperProfile } from '../../hooks/developer/useUpdateDeveloperProfile';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { RoleBadge } from '../../components/ui/Badge';
 import { useToast } from '../../context/ToastContext';
-import { Mail, Shield, Wrench, Edit3, ToggleLeft, ToggleRight } from 'lucide-react';
-import clsx from 'clsx';
+import { Mail, Edit3 } from 'lucide-react';
 
-const NIVEAU_COLORS = {
-  JUNIOR: { bg: '#EEF2FF', color: '#4F46E5', label: 'Junior' },
-  MID: { bg: '#FEF3C7', color: '#D97706', label: 'Mid-Level' },
-  SENIOR: { bg: '#D1FAE5', color: '#059669', label: 'Senior' },
-};
-
-export default function EngineerProfile() {
-  const { data: profile, isLoading } = useEngineerProfile();
-  const updateProfile = useUpdateEngineerProfile();
+export default function DeveloperProfile() {
+  const { data: profile, isLoading } = useDeveloperProfile();
+  const updateProfile = useUpdateDeveloperProfile();
   const toast = useToast();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', password: '', confirm_password: '' });
 
   useEffect(() => {
-    if (profile) {
-      setForm({ name: profile.name, password: '', confirm_password: '' });
-    }
+    if (profile) setForm({ name: profile.name, password: '', confirm_password: '' });
   }, [profile]);
 
   const handleSave = async () => {
@@ -33,12 +24,13 @@ export default function EngineerProfile() {
       toast.error('Les mots de passe ne correspondent pas.');
       return;
     }
-
     try {
       await updateProfile.mutateAsync({
         name: form.name,
-        password: form.password || undefined,
-        confirm_password: form.confirm_password || undefined,
+        ...(form.password ? {
+          password: form.password,
+          confirm_password: form.confirm_password,
+        } : {}),
       });
       toast.success('Profil mis à jour.');
       setEditing(false);
@@ -50,16 +42,6 @@ export default function EngineerProfile() {
   const handleCancel = () => {
     setForm({ name: profile?.name || '', password: '', confirm_password: '' });
     setEditing(false);
-  };
-
-  const handleToggleAvailability = async () => {
-    const next = profile.disponibilite === false ? true : false;
-    try {
-      await updateProfile.mutateAsync({ disponibilite: next });
-      toast.success(next ? 'Vous êtes maintenant disponible.' : 'Vous êtes maintenant indisponible.');
-    } catch {
-      toast.error('Erreur lors de la mise à jour.');
-    }
   };
 
   if (isLoading) {
@@ -74,23 +56,14 @@ export default function EngineerProfile() {
 
   if (!profile) return null;
 
-  const initials = profile.name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-
-  const niveauCfg = NIVEAU_COLORS[profile.niveau] || NIVEAU_COLORS.MID;
+  const initials = profile.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div className="space-y-6 max-w-3xl animate-fade-in">
       {/* Page Header */}
       <div>
         <h1 className="text-[22px] font-bold text-text-primary tracking-tight">Mon Profil</h1>
-        <p className="text-sm text-text-muted mt-1">
-          Gérez vos informations personnelles et vos paramètres d'accès.
-        </p>
+        <p className="text-sm text-text-muted mt-1">Gérez vos informations personnelles et vos paramètres d'accès.</p>
       </div>
 
       {/* Profile Card */}
@@ -118,35 +91,8 @@ export default function EngineerProfile() {
               </Button>
             )}
           </div>
-
-          {/* Info Badges */}
-          <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3">
             <RoleBadge role={profile.role} />
-            <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium"
-              style={{ backgroundColor: niveauCfg.bg, color: niveauCfg.color }}
-            >
-              <Shield size={11} /> {niveauCfg.label}
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-text-secondary">
-              <Wrench size={11} /> {profile.specialite || 'Non spécifié'}
-            </span>
-            <button
-              onClick={handleToggleAvailability}
-              disabled={updateProfile.isPending}
-              title="Cliquez pour changer votre disponibilité"
-              className={clsx(
-                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer',
-                profile.disponibilite === false
-                  ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  : 'bg-green-50 text-green-700 hover:bg-green-100'
-              )}
-            >
-              {profile.disponibilite === false
-                ? <ToggleLeft size={13} />
-                : <ToggleRight size={13} />}
-              {profile.disponibilite === false ? 'Indisponible' : 'Disponible'}
-            </button>
           </div>
         </div>
       </div>
@@ -183,12 +129,8 @@ export default function EngineerProfile() {
               />
             )}
             <div className="flex items-center gap-3 pt-2">
-              <Button onClick={handleSave} loading={updateProfile.isPending}>
-                Enregistrer
-              </Button>
-              <Button variant="secondary" onClick={handleCancel}>
-                Annuler
-              </Button>
+              <Button onClick={handleSave} loading={updateProfile.isPending}>Enregistrer</Button>
+              <Button variant="secondary" onClick={handleCancel}>Annuler</Button>
             </div>
           </div>
         ) : (
@@ -203,11 +145,11 @@ export default function EngineerProfile() {
             </div>
             <div>
               <p className="text-xs text-text-muted mb-0.5">Rôle</p>
-              <p className="text-sm text-text-secondary">Ingénieur</p>
+              <p className="text-sm text-text-secondary">Développeur</p>
             </div>
             <div className="pt-2">
               <p className="text-[11px] text-text-muted font-mono">
-                Identifiant de sécurité : AT-ENG-{String(profile.id).padStart(4, '0')}-Z
+                Identifiant de sécurité : AT-DEV-{String(profile.id).padStart(4, '0')}-Z
               </p>
             </div>
           </div>

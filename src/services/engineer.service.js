@@ -1,73 +1,107 @@
-import { api } from '../api/axios';
+import { engineerService as api } from '../api/engineer.service';
+
+const toItems = (data) =>
+  data?.items ?? (Array.isArray(data) ? data : []);
+
+const normalizeClarificationSession = (session) => {
+  if (!session) return null;
+  return session.clarification_session ?? session.session ?? session;
+};
 
 export const engineerService = {
-  // ── Stats ─────────────────────────────────────────────────────
-  getStats: () => {
-    // Calculate stats purely from tickets since a dedicated stats endpoint for engineers doesn't exist
-    return api.get('/engineer/tickets', { params: { limit: 100 } }).then(r => {
-      const tickets = r.data.items || [];
-      const totalResolved = tickets.filter(t => t.status === 'RESOLVED' || t.status === 'AUTO_RESOLVED').length;
-      const autoResolved = tickets.filter(t => t.status === 'AUTO_RESOLVED').length;
-      const precision = totalResolved > 0 ? (autoResolved / totalResolved) * 100 : 0;
-      
+  // ── Stats (computed from tickets) ─────────────────────────────
+  getStats: () =>
+    api.getAssignedTickets({ limit: 1000 }).then((data) => {
+      const items = toItems(data);
+      const resolved = items.filter(
+        (t) => t.status === 'RESOLVED' || t.status === 'AUTO_RESOLVED'
+      ).length;
+      const autoResolved = items.filter((t) => t.status === 'AUTO_RESOLVED').length;
       return {
-        total_assigned: tickets.length,
-        resolved: totalResolved,
-        misassigned: tickets.filter(t => t.status === 'MISASSIGNED' || t.status === 'REASSIGNED').length,
-        awaiting_clarification: tickets.filter(t => t.status === 'AWAITING_CLARIFICATION').length,
-        ai_precision: Math.round(precision), // Added AI precision mapping dynamically for Engineer
+        total_assigned: data?.total ?? items.length,
+        resolved,
+        misassigned: items.filter(
+          (t) => t.status === 'MISASSIGNED' || t.status === 'REASSIGNED'
+        ).length,
+        awaiting_clarification: items.filter(
+          (t) => t.status === 'AWAITING_CLARIFICATION'
+        ).length,
+        ai_precision: resolved > 0 ? Math.round((autoResolved / resolved) * 100) : 0,
       };
-    });
-  },
+    }),
 
-  // ── Tickets (paginated + filter) ──────────────────────────────
+  // ── Tickets (paginated + client-side status filter) ───────────
   getTickets: async ({ skip = 0, limit = 10, status } = {}) => {
-    // Backend doesn't support status filtering natively for engineers.
-    // Fetch a large pool, filter manually, then slice.
-    const r = await api.get('/engineer/tickets', { params: { limit: 1000 } });
-    const allItems = r.data.items || [];
-    
-    // Filter by status if provided
-    const filtered = status ? allItems.filter(t => t.status === status) : allItems;
-    
-    // Paginate manually
-    return {
-      items: filtered.slice(skip, skip + limit),
-      total: filtered.length,
-      skip,
-      limit
-    };
+    if (status) {
+      const data = await api.getAssignedTickets({ limit: 1000 });
+      const items = toItems(data);
+      const filtered = items.filter((t) => t.status === status);
+      return { items: filtered.slice(skip, skip + limit), total: filtered.length, skip, limit };
+    }
+    return api.getAssignedTickets({ skip, limit });
   },
 
   // ── Ticket Detail ─────────────────────────────────────────────
-  getTicketDetail: (id) => api.get(`/engineer/tickets/${id}`).then(r => r.data),
+  getTicketDetail: async (id) => {
+    const ticket = await api.getTicketDetail(id);
+    let clarificationSession = null;
 
-  // ── Submit Response ───────────────────────────────────────────
-  submitResponse: (ticketId, { response_text }) => 
-    api.post(`/engineer/tickets/${ticketId}/response`, { response_text }).then(r => r.data),
+    try {
+      clarificationSession = normalizeClarificationSession(await api.getClarificationSession?.(id));
+    } catch {
+      clarificationSession = null;
+    }
 
-  // ── Update Response ───────────────────────────────────────────
-  updateResponse: (ticketId, { response_text }) => 
-    api.put(`/engineer/tickets/${ticketId}/response`, { content: response_text }).then(r => r.data),
+    if (clarificationSession) {
+      const existingMessages = ticket?.clarification_session?.messages || [];
+      const incomingMessages = clarificationSession.messages || [];
+      const shouldReplaceSession = !ticket.clarification_session || existingMessages.length === 0;
+
+      if (shouldReplaceSession) {
+        ticket.clarification_session = {
+          ...(ticket.clarification_session || {}),
+          ...clarificationSession,
+          messages: incomingMessages.length > 0 ? incomingMessages : existingMessages,
+        };
+      }
+    }
+
+    if (ticket?.engineer_response) {
+      ticket.engineer_response.response_text =
+        ticket.engineer_response.response_text ?? ticket.engineer_response.content;
+    }
+    return ticket;
+  },
+
+  // ── Submit Response (POST — new) ──────────────────────────────
+  submitResponse: (ticketId, { response_text }) =>
+    api.writeResponse(ticketId, { response_text }),
+
+  // ── Update Response (PUT — edit) ──────────────────────────────
+  updateResponse: (ticketId, { response_text }) =>
+    api.editResponse(ticketId, { response_text }),
 
   // ── Resolve Ticket ────────────────────────────────────────────
-  resolveTicket: (ticketId) => api.patch(`/engineer/tickets/${ticketId}/resolve`).then(r => r.data),
+  resolveTicket: (ticketId) => api.resolveTicket(ticketId),
 
-  // ── Request Context ───────────────────────────────────────────
-  requestContext: (ticketId, payload) => api.post(`/engineer/tickets/${ticketId}/request-context`, payload).then(r => r.data),
+  // ── Request Context ──────────────────────────────────────────
+  requestContext: (ticketId, { message }) =>
+    api.requestContext(ticketId, {
+      message,
+      content: message,
+    }),
 
   // ── Report Misassignment ──────────────────────────────────────
-  reportMisassignment: (ticketId, { reason }) => 
-    api.post(`/engineer/tickets/${ticketId}/misassignment`, { reason }).then(r => r.data),
+  reportMisassignment: (ticketId, { reason }) =>
+    api.signalMisassignment(ticketId, { reason }),
 
   // ── Notifications ─────────────────────────────────────────────
-  getNotifications: () => api.get('/engineer/notifications').then(r => r.data),
+  getNotifications: () => api.getNotifications(),
 
-  markNotificationRead: (notificationId) => 
-    api.patch(`/engineer/notifications/${notificationId}/read`).then(r => r.data),
+  markNotificationRead: (id) => api.markNotificationRead(id),
 
   // ── Profile ───────────────────────────────────────────────────
-  getProfile: () => api.get('/engineer/profile').then(r => r.data),
+  getProfile: () => api.getProfile(),
 
-  updateProfile: (body) => api.patch('/engineer/profile', body).then(r => r.data),
+  updateProfile: (body) => api.updateProfile(body),
 };

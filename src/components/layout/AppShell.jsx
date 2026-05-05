@@ -15,6 +15,10 @@ const breadcrumbMap = {
   '/engineer/dashboard': 'Ingénieur / Tableau de bord',
   '/engineer/tickets': 'Ingénieur / Tickets assignés',
   '/engineer/profile': 'Ingénieur / Profil',
+  // Developer
+  '/developer/dashboard': 'Développeur / Tableau de bord',
+  '/developer/tickets': 'Développeur / Mes tickets',
+  '/developer/profile': 'Développeur / Profil',
 };
 
 const titleMap = {
@@ -30,6 +34,10 @@ const titleMap = {
   '/engineer/dashboard': 'Tableau de bord',
   '/engineer/tickets': 'Tickets assignés',
   '/engineer/profile': 'Mon Profil',
+  // Developer
+  '/developer/dashboard': 'Tableau de bord',
+  '/developer/tickets': 'Mes Tickets',
+  '/developer/profile': 'Mon Profil',
 };
 
 export default function AppShell() {

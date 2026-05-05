@@ -17,12 +17,16 @@ import AdminProfile from './pages/admin/AdminProfile';
 
 // Developer pages
 import DeveloperDashboard from './pages/developer/DeveloperDashboard';
+import DeveloperTickets from './pages/developer/DeveloperTickets';
+import DeveloperTicketDetail from './pages/developer/DeveloperTicketDetail';
+import DeveloperProfile from './pages/developer/DeveloperProfile';
 
 // Engineer pages
 import EngineerDashboard from './pages/engineer/EngineerDashboard';
 import EngineerTickets from './pages/engineer/EngineerTickets';
 import EngineerTicketDetail from './pages/engineer/EngineerTicketDetail';
 import EngineerProfile from './pages/engineer/EngineerProfile';
+import EngineerNotifications from './pages/engineer/EngineerNotifications';
 
 export default function App() {
   return (
@@ -51,8 +55,9 @@ export default function App() {
             <Route element={<ProtectedRoute allowedRoles={['DEVELOPER']} />}>
               <Route element={<AppShell />}>
                 <Route path="/developer/dashboard" element={<DeveloperDashboard />} />
-                <Route path="/developer/tickets" element={<AdminTickets />} />
-                <Route path="/developer/profile" element={<AdminProfile />} />
+                <Route path="/developer/tickets" element={<DeveloperTickets />} />
+                <Route path="/developer/tickets/:id" element={<DeveloperTicketDetail />} />
+                <Route path="/developer/profile" element={<DeveloperProfile />} />
               </Route>
             </Route>
 
@@ -62,6 +67,7 @@ export default function App() {
                 <Route path="/engineer/dashboard" element={<EngineerDashboard />} />
                 <Route path="/engineer/tickets" element={<EngineerTickets />} />
                 <Route path="/engineer/tickets/:id" element={<EngineerTicketDetail />} />
+                <Route path="/engineer/notifications" element={<EngineerNotifications />} />
                 <Route path="/engineer/profile" element={<EngineerProfile />} />
               </Route>
             </Route>

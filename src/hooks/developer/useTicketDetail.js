@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { engineerService } from '../../services/engineer.service';
+import { developerService } from '../../services/developer.service';
 
 const getAnalysisScore = (analysis, keys) => {
   for (const key of keys) {
@@ -30,13 +30,13 @@ const mergeAnalysisScores = (previousAnalysis, nextAnalysis) => {
   };
 };
 
-export const useEngineerTicketDetail = (ticketId, options = {}) => {
+export const useTicketDetail = (ticketId, options = {}) => {
   const queryClient = useQueryClient();
   return useQuery({
-    queryKey: ['engineer', 'ticket', ticketId],
+    queryKey: ['developer', 'tickets', ticketId],
     queryFn: async () => {
-      const ticket = await engineerService.getTicketDetail(ticketId);
-      const previousTicket = queryClient.getQueryData(['engineer', 'ticket', ticketId]);
+      const ticket = await developerService.getTicketDetail(ticketId);
+      const previousTicket = queryClient.getQueryData(['developer', 'tickets', ticketId]);
 
       if (ticket?.analysis || ticket?.analysis_data) {
         const previousAnalysis = previousTicket?.analysis ?? previousTicket?.analysis_data ?? null;

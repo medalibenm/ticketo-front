@@ -49,8 +49,8 @@ export const engineerService = {
     api.patch(`/engineer/tickets/${ticketId}/resolve`).then((r) => r.data),
 
   /** POST /engineer/tickets/:ticketId/request-context */
-  requestContext: (ticketId) =>
-    api.post(`/engineer/tickets/${ticketId}/request-context`).then((r) => r.data),
+  requestContext: (ticketId, body) =>
+    api.post(`/engineer/tickets/${ticketId}/request-context`, body).then((r) => r.data),
 
   /** POST /engineer/tickets/:ticketId/misassignment  body: { reason } */
   signalMisassignment: (ticketId, body) =>

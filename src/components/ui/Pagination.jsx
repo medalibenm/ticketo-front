@@ -9,8 +9,8 @@ export function Pagination({ page, totalPages, total, limit, onPageChange, loadi
       <Button
         variant="secondary"
         size="sm"
-        disabled={page >= totalPages - 1 || loading}
-        onClick={() => onPageChange(page + 1)}
+        disabled={page === 0 || loading}
+        onClick={() => onPageChange(page - 1)}
       >
         ← Précédent
       </Button>
@@ -25,8 +25,8 @@ export function Pagination({ page, totalPages, total, limit, onPageChange, loadi
       <Button
         variant="secondary"
         size="sm"
-        disabled={page === 0 || loading}
-        onClick={() => onPageChange(page - 1)}
+        disabled={page >= totalPages - 1 || loading}
+        onClick={() => onPageChange(page + 1)}
       >
         Suivant →
       </Button>

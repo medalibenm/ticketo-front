@@ -59,9 +59,9 @@ export const developerService = {
   getClarificationSession: (ticketId) =>
     api.get(`/developer/tickets/${ticketId}/clarification`).then((r) => r.data),
 
-  /** POST /developer/tickets/:ticketId/clarification/answer */
+  /** POST /developer/tickets/:ticketId/clarification/messages */
   answerClarification: (ticketId, body) =>
-    api.post(`/developer/tickets/${ticketId}/clarification/answer`, body).then((r) => r.data),
+    api.post(`/developer/tickets/${ticketId}/clarification/messages`, body).then((r) => r.data),
 
   /** PATCH /developer/tickets/:ticketId/refill */
   refillTicket: (ticketId, body) =>

@@ -3,8 +3,9 @@ import { useAuthStore } from '../../store/auth.store';
 import clsx from 'clsx';
 import {
   LayoutDashboard, Ticket, Users, Flag,
-  BookOpen, Bot, ClipboardList, UserCircle,
+  BookOpen, Bot, ClipboardList, UserCircle, Bell,
 } from 'lucide-react';
+import { useEngineerNotifications } from '../../hooks/engineer/useEngineerNotifications';
 
 const adminLinks = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -17,13 +18,15 @@ const adminLinks = [
 ];
 
 const developerLinks = [
-  { to: '/developer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/developer/tickets', label: 'My Tickets', icon: Ticket },
+  { to: '/developer/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+  { to: '/developer/tickets', label: 'Mes tickets', icon: Ticket },
+  { to: '/developer/profile', label: 'Profil', icon: UserCircle },
 ];
 
 const engineerLinks = [
   { to: '/engineer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/engineer/tickets', label: 'Mes tickets', icon: Ticket },
+  { to: '/engineer/notifications', label: 'Notifications', icon: Bell, badgeKey: 'notifications' },
   { to: '/engineer/profile', label: 'Profil', icon: UserCircle },
 ];
 
@@ -34,6 +37,32 @@ const rolePanelLabel = {
   ENGINEER: 'Espace Ingénieur',
   DEVELOPER: 'Portail Développeur',
 };
+
+// Live unread badge rendered inside the Sidebar for the engineer Notifications link
+function EngineerSidebarBadge() {
+  const { data } = useEngineerNotifications({ enabled: true });
+  const toArray = (d) => {
+    if (!d) return [];
+    if (Array.isArray(d)) return d;
+    for (const key of ['items', 'notifications', 'data', 'results']) {
+      if (Array.isArray(d[key])) return d[key];
+    }
+    return [];
+  };
+  const unread = toArray(data).filter(
+    (n) =>
+      !n.is_read &&
+      n.type?.toLowerCase() !== 'ping' &&
+      !/^(test[\s:_-]*)?ping$/i.test((n.message || '').trim())
+  ).length;
+
+  if (!unread) return null;
+  return (
+    <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold rounded-full bg-accent text-white">
+      {unread > 9 ? '9+' : unread}
+    </span>
+  );
+}
 
 export default function Sidebar() {
   const { role } = useAuthStore();
@@ -64,7 +93,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {links.map(({ to, label, icon: Icon }) => (
+        {links.map(({ to, label, icon: Icon, badgeKey }) => (
           <NavLink
             key={to}
             to={to}
@@ -78,11 +107,12 @@ export default function Sidebar() {
             }
           >
             <Icon size={16} strokeWidth={2} />
-            <span>{label}</span>
+            <span className="flex-1">{label}</span>
+            {/* Live unread badge — engineer notifications only */}
+            {badgeKey === 'notifications' && role === 'ENGINEER' && <EngineerSidebarBadge />}
           </NavLink>
         ))}
       </nav>
     </aside>
   );
 }
-

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useEngineerTicketDetail } from '../../hooks/engineer/useEngineerTicketDetail';
 import { useEngineerSubmitResponse } from '../../hooks/engineer/useEngineerSubmitResponse';
+import { useEngineerEditResponse } from '../../hooks/engineer/useEngineerEditResponse';
 import { useEngineerResolveTicket } from '../../hooks/engineer/useEngineerResolveTicket';
 import { useEngineerRequestContext } from '../../hooks/engineer/useEngineerRequestContext';
 import { useEngineerReportMisassignment } from '../../hooks/engineer/useEngineerReportMisassignment';
@@ -12,9 +13,10 @@ import { Modal, ConfirmDialog } from '../../components/ui/Modal';
 import MisassignmentModal from '../../components/engineer/MisassignmentModal';
 import { useToast } from '../../context/ToastContext';
 import {
-  ArrowLeft, Clock, Calendar, ChevronDown, ChevronUp,
+  ArrowLeft, Clock, Calendar,
   FileText, CheckCircle2, MessageSquare, AlertTriangle,
-  Send, Bot, User, X as XIcon, PanelRightOpen, PanelRightClose,
+  Bot, User, PanelRightOpen, PanelRightClose,
+  Paperclip, Download, HourglassIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -33,6 +35,32 @@ function formatShortDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
+function ClarificationMessage({ message }) {
+  const sender = message.sender || 'USER';
+  const isBot = sender === 'BOT';
+  const isEngineer = sender === 'ENGINEER';
+  const isRightAligned = sender === 'USER' || sender === 'ENGINEER';
+  const bubbleClass = isBot
+    ? 'bg-surface-muted text-text-secondary'
+    : isEngineer
+      ? 'bg-blue-500 text-white'
+      : 'bg-green-500 text-white';
+
+  return (
+    <div className={clsx('flex gap-3 max-w-[85%]', isRightAligned ? 'ml-auto flex-row-reverse' : 'mr-auto')}>
+      <div className={clsx('w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0', isBot ? 'bg-primary-light text-primary' : isEngineer ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700')}>
+        {isBot ? <Bot size={14} /> : <User size={14} />}
+      </div>
+      <div className={clsx('rounded-card px-4 py-2.5 text-sm', bubbleClass)}>
+        <p className="whitespace-pre-wrap">{message.content}</p>
+        <p className={clsx('text-[10px] mt-1', isBot ? 'text-text-muted' : 'text-white/70')}>
+          {formatDate(message.created_at)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function EngineerTicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -41,17 +69,18 @@ export default function EngineerTicketDetail() {
   const { data: ticket, isLoading } = useEngineerTicketDetail(id);
   const { data: allTicketsData } = useEngineerTickets({ skip: 0, limit: 50 });
   const submitResponse = useEngineerSubmitResponse();
+  const editResponse = useEngineerEditResponse();
   const resolveTicket = useEngineerResolveTicket();
   const requestContext = useEngineerRequestContext();
   const reportMisassignment = useEngineerReportMisassignment();
 
   const [responseText, setResponseText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [showClarification, setShowClarification] = useState(false);
   const [showResolveConfirm, setShowResolveConfirm] = useState(false);
   const [showMisassignmentModal, setShowMisassignmentModal] = useState(false);
   const [showRequestContextModal, setShowRequestContextModal] = useState(false);
   const [contextMessage, setContextMessage] = useState('');
+  const [showClarificationConversation, setShowClarificationConversation] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Other assigned tickets for the sidebar
@@ -62,9 +91,12 @@ export default function EngineerTicketDetail() {
   // ── Handlers ──────────────────────────────────────────────────
   const handleResolve = async () => {
     try {
-      const currentHasResponse = ticket?.engineer_response !== null;
-      if (responseText.trim() && (!currentHasResponse || isEditing)) {
-        await submitResponse.mutateAsync({ ticketId: id, response_text: responseText.trim() });
+      if (responseText.trim()) {
+        if (isEditing) {
+          await editResponse.mutateAsync({ ticketId: id, response_text: responseText.trim() });
+        } else if (!ticket?.engineer_response) {
+          await submitResponse.mutateAsync({ ticketId: id, response_text: responseText.trim() });
+        }
       }
       await resolveTicket.mutateAsync(id);
       toast.success('Ticket résolu — base de connaissances mise à jour ✓');
@@ -120,6 +152,8 @@ export default function EngineerTicketDetail() {
 
   const hasResponse = ticket.engineer_response !== null;
   const isResolved = ticket.status === 'RESOLVED' || ticket.status === 'AUTO_RESOLVED';
+  const clarificationMessages = ticket.clarification_session?.messages || [];
+  const hasClarification = clarificationMessages.length > 0 || ticket.clarification_session?.summary;
 
   return (
     <div className="flex gap-6">
@@ -229,60 +263,81 @@ export default function EngineerTicketDetail() {
           </div>
         )}
 
-        {/* ── Clarification Summary ──────────────────────────────── */}
-        {ticket.clarification_session?.summary && (
-          <div className="bg-white border border-border rounded-card shadow-card overflow-hidden">
+        {/* ── Clarification thread ───────────────────────────────── */}
+        {hasClarification && (
+          <div className="bg-white border border-border rounded-card shadow-card overflow-hidden animate-fade-in">
             <div className="border-l-4 border-l-primary p-6">
-              <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Bot size={15} className="text-primary" />
-                Résumé de la clarification IA
-              </h2>
-              <blockquote className="bg-surface-muted rounded-btn p-4 text-sm text-text-secondary leading-relaxed italic border-l-2 border-l-primary/30">
-                "{ticket.clarification_session.summary}"
-              </blockquote>
-            </div>
-
-            {/* Expandable conversation */}
-            {ticket.clarification_session.messages?.length > 0 && (
-              <div className="border-t border-divider">
-                <button
-                  onClick={() => setShowClarification(!showClarification)}
-                  className="flex items-center justify-between w-full px-6 py-3 text-xs font-medium text-primary hover:bg-surface-muted transition-colors"
-                >
-                  <span>Voir la conversation complète ({ticket.clarification_session.messages.length} messages)</span>
-                  {showClarification ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                </button>
-                {showClarification && (
-                  <div className="px-6 pb-5 space-y-3 animate-fade-in">
-                    {ticket.clarification_session.messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={clsx(
-                          'flex gap-3 max-w-[85%]',
-                          msg.sender === 'BOT' ? 'mr-auto' : 'ml-auto flex-row-reverse'
-                        )}
-                      >
-                        <div className={clsx(
-                          'w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs',
-                          msg.sender === 'BOT' ? 'bg-primary-light text-primary' : 'bg-surface-muted text-text-muted'
-                        )}>
-                          {msg.sender === 'BOT' ? <Bot size={14} /> : <User size={14} />}
-                        </div>
-                        <div className={clsx(
-                          'rounded-card px-4 py-2.5 text-sm',
-                          msg.sender === 'BOT' ? 'bg-surface-muted text-text-secondary' : 'bg-primary text-white'
-                        )}>
-                          <p>{msg.content}</p>
-                          <p className={clsx('text-[10px] mt-1', msg.sender === 'BOT' ? 'text-text-muted' : 'text-white/70')}>
-                            {formatDate(msg.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <MessageSquare size={15} className="text-primary" />
+                  Échange de clarification
+                </h2>
+                <div className="flex items-center gap-3">
+                  {ticket.status === 'AWAITING_CLARIFICATION' ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-800">
+                      <HourglassIcon size={11} /> En attente
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-green-100 text-green-800">
+                      <CheckCircle2 size={11} /> Session terminée
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowClarificationConversation((value) => !value)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {showClarificationConversation ? 'Masquer la conversation' : 'Afficher la conversation'}
+                  </button>
+                </div>
               </div>
-            )}
+
+              {ticket.clarification_session?.summary && (
+                <blockquote className="bg-surface-muted rounded-btn p-4 text-sm text-text-secondary leading-relaxed italic border-l-2 border-l-primary/30 mb-4">
+                  "{ticket.clarification_session.summary}"
+                </blockquote>
+              )}
+
+              {showClarificationConversation && (
+                <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3">
+                  {clarificationMessages.length > 0 ? (
+                    clarificationMessages.map((msg) => <ClarificationMessage key={msg.id} message={msg} />)
+                  ) : (
+                    <p className="text-sm text-text-muted">Aucun message de clarification pour le moment.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Attachments ────────────────────────────────────────── */}
+        {ticket.attachments?.length > 0 && (
+          <div className="bg-white border border-border rounded-card p-6 shadow-card animate-fade-in">
+            <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+              <Paperclip size={15} className="text-text-muted" />
+              Pièces jointes ({ticket.attachments.length})
+            </h2>
+            <ul className="space-y-2">
+              {ticket.attachments.map(att => (
+                <li key={att.id} className="flex items-center gap-3 bg-surface-muted rounded-btn px-4 py-2.5">
+                  <FileText size={14} className="text-text-muted flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-text-primary truncate">{att.file_name}</p>
+                    <p className="text-[10px] text-text-muted">{att.file_type}</p>
+                  </div>
+                  <a
+                    href={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')}${att.file_url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark font-medium transition-colors"
+                  >
+                    <Download size={13} />
+                    Télécharger
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -339,7 +394,7 @@ export default function EngineerTicketDetail() {
               <div className="flex items-center gap-3">
                 <Button
                   onClick={() => setShowResolveConfirm(true)}
-                  loading={submitResponse.isPending || resolveTicket.isPending}
+                  loading={submitResponse.isPending || editResponse.isPending || resolveTicket.isPending}
                   disabled={!responseText.trim() || isResolved}
                   className="!bg-green-600 hover:!bg-green-700"
                 >
