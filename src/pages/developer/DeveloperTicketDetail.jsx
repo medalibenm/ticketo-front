@@ -1,9 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTicketDetail } from '../../hooks/developer/useTicketDetail';
 import { useAnswerClarification } from '../../hooks/developer/useAnswerClarification';
-import { useUploadAttachment } from '../../hooks/developer/useUploadAttachment';
-import { useRefillTicket } from '../../hooks/developer/useRefillTicket';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { StatusBadge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -12,8 +10,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Calendar, Clock, User, FileText, Bot,
   CheckCircle2, MessageSquare, ChevronDown, ChevronUp,
-  Paperclip, Download, Send, HourglassIcon, Sparkles, Loader2,
-  RefreshCw, Upload,
+  Send, HourglassIcon, Sparkles, Loader2,
+  UserCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -77,7 +75,6 @@ function ClarificationTypingIndicator() {
   );
 }
 
-const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'application/pdf', 'text/plain', 'text/csv', 'application/json'];
 const CLARIFICATION_OPEN_STATUSES = ['AWAITING_CLARIFICATION', 'OPEN_CLARIFICATION'];
 
 export default function DeveloperTicketDetail() {
@@ -86,23 +83,20 @@ export default function DeveloperTicketDetail() {
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef(null);
+
   const [isAiProcessingReply, setIsAiProcessingReply] = useState(false);
 
-  const { data: ticket, isLoading } = useTicketDetail(id, {
+  const { data: ticket, isLoading } = useTicketDetail(ticketId, {
     refetchInterval: isAiProcessingReply ? 2000 : false,
     refetchIntervalInBackground: true,
     staleTime: 0,
   });
+
   const answerClarification = useAnswerClarification();
-  const uploadAttachment = useUploadAttachment();
-  const refillTicket = useRefillTicket();
 
   const [clarificationText, setClarificationText] = useState('');
   const [showActiveClarification, setShowActiveClarification] = useState(true);
   const [showClosedClarification, setShowClosedClarification] = useState(false);
-  const [showRefill, setShowRefill] = useState(false);
-  const [refillText, setRefillText] = useState('');
 
   const extractTicketIdFromWsPayload = (payload) => {
     const source = payload?.data ? payload.data : payload;
@@ -147,9 +141,9 @@ export default function DeveloperTicketDetail() {
   const handleAnswerClarification = async () => {
     if (!clarificationText.trim()) return;
     try {
-      await answerClarification.mutateAsync({ ticketId: id, content: clarificationText.trim() });
+      await answerClarification.mutateAsync({ ticketId: ticketId, content: clarificationText.trim() });
       setIsAiProcessingReply(true);
-      toast.success('Réponse envoyée à l\'IA.');
+      toast.success('Réponse envoyée avec succès.');
       setClarificationText('');
     } catch {
       setIsAiProcessingReply(false);
@@ -157,44 +151,7 @@ export default function DeveloperTicketDetail() {
     }
   };
 
-  // ── File upload ────────────────────────────────────────────────
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error('Type de fichier non autorisé.');
-      e.target.value = '';
-      return;
-    }
-    if ((ticket?.attachments?.length || 0) >= 5) {
-      toast.error('Limite de 5 pièces jointes atteinte.');
-      e.target.value = '';
-      return;
-    }
-    try {
-      await uploadAttachment.mutateAsync({ ticketId: id, file });
-      toast.success(`${file.name} ajouté avec succès.`);
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Erreur lors de l\'upload.');
-    }
-    e.target.value = '';
-  };
-
-  // ── Refill ticket ──────────────────────────────────────────────
-  const handleRefill = async () => {
-    if (!refillText.trim() || refillText.trim().length < 20) {
-      toast.error('La description doit contenir au moins 20 caractères.');
-      return;
-    }
-    try {
-      await refillTicket.mutateAsync({ ticketId: id, description: refillText.trim() });
-      toast.success('Ticket mis à jour avec succès.');
-      setShowRefill(false);
-      setRefillText('');
-    } catch {
-      toast.error('Erreur lors de la mise à jour.');
-    }
-  };
+  // ── Loading / not found
 
   // ── Loading / not found ────────────────────────────────────────
   if (isLoading) {
@@ -218,32 +175,34 @@ export default function DeveloperTicketDetail() {
 
   const analysis = ticket.analysis ?? ticket.analysis_data ?? null;
   const aiResponse = ticket.ai_response ?? ticket.ai_analysis_response ?? null;
-  const aiResponseContent = aiResponse?.content ?? aiResponse?.response_text ?? aiResponse?.message ?? '';
+  const isAutoResolved = ticket.status === 'AUTO_RESOLVED' || analysis?.decision === 'AUTO_RESOLVED';
+  const aiResponseContent = aiResponse?.content ?? aiResponse?.response_text ?? aiResponse?.message ?? (isAutoResolved ? analysis?.decision_reason : '');
   const aiResponseCreatedAt = aiResponse?.created_at ?? aiResponse?.createdAt ?? ticket.updated_at;
   const richnessScore = getAnalysisScore(analysis, ['score_richesse', 'richesse_score', 'richness_score', 'richesse']);
   const similarityScore = getAnalysisScore(analysis, ['score_similarite', 'similarite_score', 'similarity_score', 'similarite']);
 
-  const isResolved = ticket.status === 'RESOLVED' || ticket.status === 'AUTO_RESOLVED';
-  const isAwaiting = CLARIFICATION_OPEN_STATUSES.includes(ticket.status) || ticket.clarification_session?.status === 'OPEN';
+  const isResolved = ticket.status === 'RESOLVED' || isAutoResolved;
   const clarificationMessages = ticket.clarification_session?.messages || [];
-  const isClarificationClosed = ticket.clarification_session?.status === 'CLOSED' || Boolean(ticket.clarification_session?.summary);
-  const isClarificationOpen = isAwaiting && !isClarificationClosed;
+
+  const isClarificationClosed = !CLARIFICATION_OPEN_STATUSES.includes(ticket.status) && (ticket.clarification_session?.status === 'CLOSED' || Boolean(ticket.clarification_session?.summary) || isResolved);
+  
+  const isClarificationOpen = CLARIFICATION_OPEN_STATUSES.includes(ticket.status) && !isClarificationClosed;
   const hasClarificationContent =
     isClarificationOpen ||
     isClarificationClosed ||
     clarificationMessages.length > 0 ||
     Boolean(ticket.clarification_session?.summary);
+
   const assignedEngineerName = ticket.engineer_name?.trim();
   const hasEngineerAssignment = Boolean(
-    assignedEngineerName ||
-      ticket.engineer_id ||
-      ticket.status === 'IN_PROGRESS' ||
-      CLARIFICATION_OPEN_STATUSES.includes(ticket.status)
+    !isAutoResolved && (
+      (assignedEngineerName || ticket.engineer_id) ||
+      ((ticket.status === 'IN_PROGRESS' || CLARIFICATION_OPEN_STATUSES.includes(ticket.status)) && !aiResponse)
+    )
   );
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* Back */}
       <button
         onClick={() => navigate('/developer/tickets')}
         className="flex items-center gap-2 text-sm text-text-muted hover:text-primary transition-colors animate-fade-in"
@@ -251,7 +210,6 @@ export default function DeveloperTicketDetail() {
         <ArrowLeft size={16} /> Retour aux tickets
       </button>
 
-      {/* ── Ticket Header ──────────────────────────────────────────── */}
       <div className="bg-white border border-border rounded-card p-6 shadow-card animate-fade-in">
         <h1 className="text-xl font-bold text-text-primary leading-snug mb-3">{ticket.title}</h1>
         <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -266,7 +224,7 @@ export default function DeveloperTicketDetail() {
         <div className="flex flex-wrap items-center gap-6 text-xs text-text-muted">
           <span className="flex items-center gap-1.5"><Calendar size={13} /> Créé le {formatDate(ticket.created_at)}</span>
           <span className="flex items-center gap-1.5"><Clock size={13} /> Mis à jour {formatDate(ticket.updated_at)}</span>
-          {ticket.engineer_name && (
+          {!isAutoResolved && ticket.engineer_name && (
             <span className="flex items-center gap-1.5">
               <User size={13} /> Assigné à <span className="font-medium text-text-secondary ml-1">{ticket.engineer_name}</span>
             </span>
@@ -299,46 +257,13 @@ export default function DeveloperTicketDetail() {
         )}
       </div>
 
-      {/* ── Description ────────────────────────────────────────────── */}
       <div className="bg-white border border-border rounded-card p-6 shadow-card" style={{ animation: 'slideUp 0.35s ease-out 0.08s both' }}>
         <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
           <FileText size={15} className="text-text-muted" /> Description du problème
         </h2>
         <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
-
-        {/* Refill toggle */}
-        {!isResolved && (
-          <div className="mt-4 pt-4 border-t border-divider">
-            {showRefill ? (
-              <div className="space-y-3">
-                <p className="text-xs text-text-muted">Ajoutez du contexte supplémentaire pour aider l'ingénieur.</p>
-                <textarea
-                  className="w-full bg-input-bg border border-input-border rounded-btn px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-all duration-150 focus:outline-none focus:border-primary focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,86,179,0.08)] resize-none"
-                  rows={4}
-                  value={refillText}
-                  onChange={(e) => setRefillText(e.target.value)}
-                  placeholder="Ajoutez des informations complémentaires..."
-                />
-                <div className="flex items-center gap-3">
-                  <Button onClick={handleRefill} loading={refillTicket.isPending} disabled={refillText.trim().length < 20}>
-                    <RefreshCw size={14} /> Mettre à jour
-                  </Button>
-                  <Button variant="secondary" onClick={() => { setShowRefill(false); setRefillText(''); }}>Annuler</Button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowRefill(true)}
-                className="text-xs text-primary hover:underline font-medium flex items-center gap-1.5"
-              >
-                <RefreshCw size={12} /> Ajouter plus de contexte
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* ── AI Analysis ────────────────────────────────────────────── */}
       {analysis && (
         <div className="bg-white border border-border rounded-card p-6 shadow-card" style={{ animation: 'slideUp 0.35s ease-out 0.16s both' }}>
           <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
@@ -387,87 +312,75 @@ export default function DeveloperTicketDetail() {
         </div>
       )}
 
-      {/* ── Awaiting clarification banner + chat ───────────────────── */}
       {isClarificationOpen && (
-        <div className="bg-white border border-amber-200 rounded-card shadow-card overflow-hidden" style={{ animation: 'slideUp 0.35s ease-out 0.22s both' }}>
-          <div className="border-l-4 border-l-amber-400 p-6 flex flex-col gap-4">
+        <div className="bg-white border border-blue-200 rounded-card shadow-card overflow-hidden" style={{ animation: 'slideUp 0.35s ease-out 0.22s both' }}>
+          <div className="border-l-4 border-l-blue-500 p-6 flex flex-col gap-4">
             <div>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                <HourglassIcon size={15} className="text-amber-600" />
-                  Clarification requise
+                  <UserCheck size={15} className="text-blue-600" />
+                  L'ingénieur demande des précisions
+                  <span className="ml-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                    Ingénieur
+                  </span>
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowActiveClarification((value) => !value)}
-                  className="text-xs font-medium text-primary hover:underline shrink-0"
-                >
-                  {showActiveClarification ? 'Masquer la conversation' : 'Afficher la conversation'}
-                </button>
+                {clarificationMessages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowActiveClarification((value) => !value)}
+                    className="text-xs font-medium text-primary hover:underline shrink-0"
+                  >
+                    {showActiveClarification ? 'Masquer la conversation' : 'Voir la conversation'}
+                  </button>
+                )}
               </div>
               <p className="text-sm text-text-secondary">
-                L'IA a besoin de plus d'informations pour analyser votre ticket. Répondez directement dans le fil ci-dessous.
+                L'ingénieur en charge de votre ticket a besoin de précisions supplémentaires.
               </p>
             </div>
 
-            {showActiveClarification && (
-              <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3">
-                {clarificationMessages.length > 0 ? (
-                  clarificationMessages.map((msg) => <ClarificationMessage key={msg.id} message={msg} />)
-                ) : (
-                  <p className="text-sm text-text-muted">Aucun message pour le moment.</p>
-                )}
-
-                {isAiProcessingReply && <ClarificationTypingIndicator />}
-              </div>
-            )}
-
-            <div className="border-t border-divider pt-4 mt-auto space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-text-muted">
-                  {isAiProcessingReply
-                    ? 'L\'IA rédige sa réponse, veuillez patienter.'
-                    : 'Le message reste visible pendant toute la session.'}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50"
-                  disabled={isAiProcessingReply}
-                >
-                  <Upload size={13} /> Joindre un fichier
-                </button>
-              </div>
+            <div className="rounded-xl border-2 border-blue-300 bg-blue-50/50 p-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                {isAiProcessingReply
+                  ? "⏳ Envoi de la réponse, veuillez patienter…"
+                  : "💬 Votre réponse à l'ingénieur"}
+              </p>
               <textarea
-                className="w-full bg-input-bg border border-input-border rounded-btn px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-all duration-150 focus:outline-none focus:border-primary focus:bg-white focus:shadow-[0_0_0_3px_rgba(0,86,179,0.08)] resize-none"
-                rows={3}
+                className="w-full bg-white border-2 rounded-lg px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-all duration-150 focus:outline-none resize-none border-blue-200 focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.15)]"
+                rows={4}
                 value={clarificationText}
                 onChange={(e) => setClarificationText(e.target.value)}
-                placeholder="Votre réponse..."
+                placeholder="Décrivez la situation avec le maximum de détails pour aider l'ingénieur…"
                 disabled={isAiProcessingReply}
-              />
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept=".png,.jpg,.jpeg,.gif,.pdf,.txt,.csv,.json"
-                onChange={handleFileChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && clarificationText.trim()) {
+                    handleAnswerClarification();
+                  }
+                }}
               />
               <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-text-muted">Ctrl + Entrée pour envoyer</span>
                 <Button
                   onClick={handleAnswerClarification}
                   loading={answerClarification.isPending || isAiProcessingReply}
                   disabled={!clarificationText.trim() || isAiProcessingReply}
+                  className="!bg-blue-600 hover:!bg-blue-700 !text-white"
                 >
-                  <Send size={14} /> {isAiProcessingReply ? 'Traitement en cours...' : 'Envoyer la réponse'}
+                  <Send size={14} /> {isAiProcessingReply ? 'Traitement en cours…' : 'Envoyer la réponse'}
                 </Button>
               </div>
             </div>
+
+            {showActiveClarification && clarificationMessages.length > 0 && (
+              <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3 border-t border-divider pt-4">
+                {clarificationMessages.map((msg) => <ClarificationMessage key={msg.id} message={msg} />)}
+                {isAiProcessingReply && <ClarificationTypingIndicator />}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* ── Clarification ended ───────────────────────────────────── */}
       {isClarificationClosed && (
         <div className="bg-white border border-slate-200 rounded-card shadow-card overflow-hidden" style={{ animation: 'slideUp 0.35s ease-out 0.22s both' }}>
           <div className="border-l-4 border-l-slate-400 p-6 flex flex-col gap-4">
@@ -504,50 +417,49 @@ export default function DeveloperTicketDetail() {
       {/* ── Clarification not opened ─────────────────────────────── */}
       {!hasClarificationContent && (
         <div className="bg-white border border-border rounded-card shadow-card overflow-hidden" style={{ animation: 'slideUp 0.35s ease-out 0.22s both' }}>
-          <div className="border-l-4 border-l-primary p-6 flex flex-col gap-4">
+          <div className="border-l-4 border-l-slate-300 p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
-                  <MessageSquare size={15} className="text-primary" />
+                  <MessageSquare size={15} className="text-text-muted" />
                   Clarification IA
                 </h2>
                 <p className="text-sm text-text-secondary">
-                  Ce ticket a ete escalade directement a un ingenieur, sans ouverture de session de clarification.
+                  {isAutoResolved
+                    ? "Ce ticket a été résolu par l'IA directement depuis la base de connaissances, sans nécessiter de clarification."
+                    : "Ce ticket a été escaladé à un ingénieur sans session de clarification. Utilisez \"Ajouter plus de contexte\" ci-dessus pour envoyer des informations supplémentaires."}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+              <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600">
                 <CheckCircle2 size={11} /> Non ouverte
               </span>
-            </div>
-
-            <div className="max-h-[220px] overflow-y-auto pr-1 space-y-3 bg-surface-muted/60 border border-divider rounded-btn p-4">
-              <p className="text-sm text-text-muted">Aucun message de clarification pour ce ticket.</p>
-            </div>
-
-            <div className="border-t border-divider pt-4 mt-auto space-y-3">
-              <p className="text-xs text-text-muted">
-                Aucun envoi de message n'est disponible tant que la session de clarification n'est pas ouverte.
-              </p>
-              <textarea
-                className="w-full bg-input-bg border border-input-border rounded-btn px-4 py-3 text-sm text-text-primary placeholder:text-text-muted transition-all duration-150 focus:outline-none resize-none"
-                rows={3}
-                value=""
-                placeholder="La clarification n'est pas disponible pour ce ticket."
-                disabled
-                readOnly
-              />
-              <div className="flex items-center justify-between gap-3">
-                <Button disabled>
-                  <Send size={14} /> Envoyer la reponse
-                </Button>
-              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── AI Clarification Summary ──────────────────────────────── */}
+      {ticket.clarification_session?.summary && (
+        <div className="bg-white border border-violet-200 rounded-card shadow-card overflow-hidden" style={{ animation: 'slideUp 0.35s ease-out 0.24s both' }}>
+          <div className="border-l-4 border-l-violet-500 p-6">
+            <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+              <Sparkles size={15} className="text-violet-600" />
+              Résumé IA de la clarification
+              <span className="ml-auto text-[10px] font-normal text-text-muted">
+                Généré automatiquement
+              </span>
+            </h2>
+            <div className="bg-violet-50/60 border border-violet-100 rounded-btn p-4 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+              {ticket.clarification_session.summary}
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
       {/* ── AI Auto-response ────────────────────────────────────────── */}
-      {aiResponse && (
+      {isAutoResolved && aiResponseContent && (
         <div className="bg-white border border-green-200 rounded-card shadow-card overflow-hidden" style={{ animation: 'slideUp 0.35s ease-out 0.28s both' }}>
           <div className="border-l-4 border-l-green-500 p-6">
             <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
@@ -583,46 +495,6 @@ export default function DeveloperTicketDetail() {
         </div>
       )}
 
-      {/* ── Attachments ────────────────────────────────────────────── */}
-      <div className="bg-white border border-border rounded-card p-6 shadow-card" style={{ animation: 'slideUp 0.35s ease-out 0.36s both' }}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-            <Paperclip size={15} className="text-text-muted" />
-            Pièces jointes ({ticket.attachments?.length || 0} / 5)
-          </h2>
-        </div>
-
-        {!ticket.attachments?.length ? (
-          <div className="text-center py-6 text-text-muted">
-            <Paperclip size={28} className="mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Aucune pièce jointe</p>
-            {!isResolved && (
-              <p className="text-xs mt-1">Ajoutez des logs, captures d'écran ou fichiers de configuration.</p>
-            )}
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {ticket.attachments.map((att) => (
-              <li key={att.id} className="flex items-center gap-3 bg-surface-muted rounded-btn px-4 py-2.5">
-                <FileText size={14} className="text-text-muted flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-text-primary truncate">{att.file_name}</p>
-                  <p className="text-[10px] text-text-muted">{att.file_type}</p>
-                </div>
-                <a
-                  href={`${(import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')}${att.file_url}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark font-medium transition-colors"
-                >
-                  <Download size={13} /> Télécharger
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       {/* ── Status info for resolved tickets ───────────────────────── */}
       {isResolved && !ticket.engineer_response && !aiResponse && (
         <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-card px-5 py-3 animate-fade-in">
@@ -632,7 +504,7 @@ export default function DeveloperTicketDetail() {
       )}
 
       {/* ── Pending message ────────────────────────────────────────── */}
-      {!isResolved && !isAwaiting && !ticket.engineer_response && !aiResponse && (
+      {!isResolved && !isClarificationOpen && !ticket.engineer_response && !aiResponse && (
         <div className="flex items-center gap-3 bg-surface-muted border border-border rounded-card px-5 py-3 animate-fade-in">
           <MessageSquare size={16} className="text-text-muted flex-shrink-0" />
           <p className="text-sm text-text-secondary">

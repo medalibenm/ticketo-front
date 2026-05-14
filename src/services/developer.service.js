@@ -86,8 +86,8 @@ export const developerService = {
   // ── Clarification ─────────────────────────────────────────────
   getClarificationSession: (ticketId) => api.getClarificationSession(ticketId),
 
-  answerClarification: (ticketId, { content }) =>
-    api.answerClarification(ticketId, { content }),
+  answerClarification: (ticketId, payload) =>
+    api.answerClarification(ticketId, payload),
 
   // ── Refill ────────────────────────────────────────────────────
   refillTicket: (ticketId, body) => api.refillTicket(ticketId, body),

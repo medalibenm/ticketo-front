@@ -36,7 +36,7 @@ function formatDate(dateStr) {
 }
 
 const getRowBorder = (status) => {
-  if (status === 'AWAITING_CLARIFICATION') return 'border-l-[3px] border-l-amber-400';
+  if (status === 'AWAITING_CLARIFICATION' || status === 'OPEN_CLARIFICATION') return 'border-l-[3px] border-l-amber-400';
   if (status === 'IN_PROGRESS') return 'border-l-[3px] border-l-primary';
   if (status === 'RESOLVED' || status === 'AUTO_RESOLVED') return 'border-l-[3px] border-l-green-500';
   return 'border-l-[3px] border-l-transparent';
@@ -184,7 +184,9 @@ export default function DeveloperTickets() {
                   </td>
                   <td className="px-4 py-3"><StatusBadge status={ticket.status} /></td>
                   <td className="px-4 py-3 text-xs text-text-secondary">
-                    {ticket.engineer_name || <span className="text-text-muted italic">Non assigné</span>}
+                    {ticket.status === 'AUTO_RESOLVED'
+                      ? <span className="inline-flex items-center gap-1 text-green-700 font-medium"><span>🤖</span> IA</span>
+                      : (ticket.engineer_name || <span className="text-text-muted italic">Non assigné</span>)}
                   </td>
                   <td className="px-4 py-3 text-xs text-text-muted">{formatDate(ticket.created_at)}</td>
                   <td className="px-4 py-3">

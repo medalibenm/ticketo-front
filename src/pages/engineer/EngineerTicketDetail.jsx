@@ -16,7 +16,7 @@ import {
   ArrowLeft, Clock, Calendar,
   FileText, CheckCircle2, MessageSquare, AlertTriangle,
   Bot, User, PanelRightOpen, PanelRightClose,
-  Paperclip, Download, HourglassIcon,
+  Paperclip, Download, HourglassIcon, Sparkles, UserCheck,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -153,7 +153,18 @@ export default function EngineerTicketDetail() {
   const hasResponse = ticket.engineer_response !== null;
   const isResolved = ticket.status === 'RESOLVED' || ticket.status === 'AUTO_RESOLVED';
   const clarificationMessages = ticket.clarification_session?.messages || [];
-  const hasClarification = clarificationMessages.length > 0 || ticket.clarification_session?.summary;
+  const clarificationSummary = ticket.clarification_session?.summary || null;
+  const hasClarification = clarificationMessages.length > 0 || !!clarificationSummary;
+  // Normalise analysis — backend may use either field name
+  const analysis = ticket.analysis ?? ticket.analysis_data ?? null;
+
+  // Detect if developer has sent the latest reply that the engineer hasn't actioned yet
+  const isSessionOpen = ticket.status === 'OPEN_CLARIFICATION' || ticket.status === 'AWAITING_CLARIFICATION';
+  const lastClarificationMessage = clarificationMessages[clarificationMessages.length - 1] ?? null;
+  const developerReplied =
+    isSessionOpen &&
+    lastClarificationMessage &&
+    (lastClarificationMessage.sender || '').toUpperCase() === 'USER';
 
   return (
     <div className="flex gap-6">
@@ -218,7 +229,7 @@ export default function EngineerTicketDetail() {
         </div>
 
         {/* ── AI Analysis Card ───────────────────────────────────── */}
-        {ticket.analysis && (
+        {analysis && (
           <div className="bg-white border border-border rounded-card p-6 shadow-card" style={{ animation: 'slideUp 0.35s ease-out 0.16s both' }}>
             <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
               <Bot size={15} className="text-primary" />
@@ -228,15 +239,15 @@ export default function EngineerTicketDetail() {
               <div className="space-y-3">
                 <div>
                   <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Catégorie détectée</p>
-                  <p className="text-sm text-text-secondary">{CATEGORY_LABELS[ticket.analysis.categorie_detectee] || ticket.analysis.categorie_detectee}</p>
+                  <p className="text-sm text-text-secondary">{CATEGORY_LABELS[analysis.categorie_detectee] || analysis.categorie_detectee}</p>
                 </div>
                 <div>
                   <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Décision</p>
-                  <StatusBadge status={ticket.analysis.decision} />
+                  <StatusBadge status={analysis.decision} />
                 </div>
                 <div>
                   <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1">Raison</p>
-                  <p className="text-sm text-text-secondary leading-relaxed">{ticket.analysis.decision_reason}</p>
+                  <p className="text-sm text-text-secondary leading-relaxed">{analysis.decision_reason}</p>
                 </div>
               </div>
               <div className="space-y-4">
@@ -244,18 +255,18 @@ export default function EngineerTicketDetail() {
                   <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-2">Score de richesse</p>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-surface-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(ticket.analysis.score_richesse ?? ticket.analysis.richesse_score ?? ticket.analysis.richness_score ?? ticket.analysis.richesse ?? 0) * 100}%` }} />
+                      <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(analysis.score_richesse ?? analysis.richesse_score ?? analysis.richness_score ?? analysis.richesse ?? 0) * 100}%` }} />
                     </div>
-                    <span className="text-xs font-medium text-text-secondary w-10 text-right">{Math.round((ticket.analysis.score_richesse ?? ticket.analysis.richesse_score ?? ticket.analysis.richness_score ?? ticket.analysis.richesse ?? 0) * 100)}%</span>
+                    <span className="text-xs font-medium text-text-secondary w-10 text-right">{Math.round((analysis.score_richesse ?? analysis.richesse_score ?? analysis.richness_score ?? analysis.richesse ?? 0) * 100)}%</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-[11px] font-medium text-text-muted uppercase tracking-wider mb-2">Score de similarité</p>
                   <div className="flex items-center gap-3">
                     <div className="flex-1 h-2 bg-surface-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${(ticket.analysis.score_similarite ?? ticket.analysis.similarite_score ?? ticket.analysis.similarity_score ?? ticket.analysis.similarite ?? 0) * 100}%` }} />
+                      <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${(analysis.score_similarite ?? analysis.similarite_score ?? analysis.similarity_score ?? analysis.similarite ?? 0) * 100}%` }} />
                     </div>
-                    <span className="text-xs font-medium text-text-secondary w-10 text-right">{Math.round((ticket.analysis.score_similarite ?? ticket.analysis.similarite_score ?? ticket.analysis.similarity_score ?? ticket.analysis.similarite ?? 0) * 100)}%</span>
+                    <span className="text-xs font-medium text-text-secondary w-10 text-right">{Math.round((analysis.score_similarite ?? analysis.similarite_score ?? analysis.similarity_score ?? analysis.similarite ?? 0) * 100)}%</span>
                   </div>
                 </div>
               </div>
@@ -263,7 +274,23 @@ export default function EngineerTicketDetail() {
           </div>
         )}
 
-        {/* ── Clarification thread ───────────────────────────────── */}
+        {/* ── AI Clarification Summary ───────────────────────────── */}
+        {clarificationSummary && (
+          <div className="bg-white border border-violet-200 rounded-card shadow-card overflow-hidden animate-fade-in">
+            <div className="border-l-4 border-l-violet-500 p-6">
+              <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <Sparkles size={15} className="text-violet-600" />
+                Résumé IA de la clarification
+                <span className="ml-auto text-[10px] font-normal text-text-muted">Généré automatiquement</span>
+              </h2>
+              <div className="bg-violet-50/60 border border-violet-100 rounded-btn p-4 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+                {clarificationSummary}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Clarification thread ─────────────────────────────── */}
         {hasClarification && (
           <div className="bg-white border border-border rounded-card shadow-card overflow-hidden animate-fade-in">
             <div className="border-l-4 border-l-primary p-6">
@@ -273,7 +300,7 @@ export default function EngineerTicketDetail() {
                   Échange de clarification
                 </h2>
                 <div className="flex items-center gap-3">
-                  {ticket.status === 'AWAITING_CLARIFICATION' ? (
+                  {ticket.status === 'AWAITING_CLARIFICATION' || ticket.status === 'OPEN_CLARIFICATION' ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-800">
                       <HourglassIcon size={11} /> En attente
                     </span>
@@ -282,31 +309,47 @@ export default function EngineerTicketDetail() {
                       <CheckCircle2 size={11} /> Session terminée
                     </span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setShowClarificationConversation((value) => !value)}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    {showClarificationConversation ? 'Masquer la conversation' : 'Afficher la conversation'}
-                  </button>
+                  {clarificationMessages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowClarificationConversation((value) => !value)}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      {showClarificationConversation ? 'Masquer la conversation' : 'Afficher la conversation'}
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {ticket.clarification_session?.summary && (
-                <blockquote className="bg-surface-muted rounded-btn p-4 text-sm text-text-secondary leading-relaxed italic border-l-2 border-l-primary/30 mb-4">
-                  "{ticket.clarification_session.summary}"
-                </blockquote>
-              )}
-
-              {showClarificationConversation && (
+              {showClarificationConversation && clarificationMessages.length > 0 && (
                 <div className="max-h-[420px] overflow-y-auto pr-1 space-y-3">
-                  {clarificationMessages.length > 0 ? (
-                    clarificationMessages.map((msg) => <ClarificationMessage key={msg.id} message={msg} />)
-                  ) : (
-                    <p className="text-sm text-text-muted">Aucun message de clarification pour le moment.</p>
-                  )}
+                  {clarificationMessages.map((msg) => <ClarificationMessage key={msg.id} message={msg} />)}
                 </div>
               )}
+              {clarificationMessages.length === 0 && (
+                <p className="text-sm text-text-muted">Aucun message de clarification pour le moment.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Developer reply notification ───────────────────────── */}
+        {developerReplied && (
+          <div className="bg-white border border-green-200 rounded-card shadow-card overflow-hidden animate-fade-in">
+            <div className="border-l-4 border-l-green-500 p-6">
+              <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <UserCheck size={15} className="text-green-600" />
+                Réponse du développeur
+                <span className="ml-auto text-[10px] font-normal text-text-muted">
+                  {lastClarificationMessage?.created_at ? formatDate(lastClarificationMessage.created_at) : ''}
+                </span>
+              </h2>
+              <div className="bg-green-50/70 border border-green-100 rounded-btn p-4 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+                {lastClarificationMessage?.content}
+              </div>
+              <p className="text-xs text-text-muted mt-3">
+                Le développeur a répondu à votre demande de clarification. Vous pouvez maintenant continuer le traitement du ticket.
+              </p>
             </div>
           </div>
         )}

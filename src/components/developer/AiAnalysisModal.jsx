@@ -97,13 +97,33 @@ const hasAnalysisResult = (ticket) =>
 
 const getCompletionStatus = (ticket) => {
   if (!ticket) return null;
-  if (ticket.status === 'OPEN_CLARIFICATION') return 'AWAITING_CLARIFICATION';
-  if (ticket.status && OUTCOME[ticket.status]) return ticket.status;
-  if (ticket.status === 'AWAITING_CLARIFICATION') return ticket.status;
-  if (ticket.clarification_session?.status === 'OPEN' || (ticket.clarification_session?.messages || []).length > 0) {
+
+  // 1. AUTO_RESOLVED — check status and analysis.decision only (ai_response may be set on other tickets)
+  if (
+    ticket.status === 'AUTO_RESOLVED' ||
+    ticket.analysis?.decision === 'AUTO_RESOLVED' ||
+    ticket.analysis_data?.decision === 'AUTO_RESOLVED'
+  ) {
+    return 'AUTO_RESOLVED';
+  }
+
+  // 2. Engineer-resolved
+  if (ticket.status === 'RESOLVED') return 'RESOLVED';
+
+  // 3. Clarification requested (AI or engineer)
+  if (ticket.status === 'OPEN_CLARIFICATION' || ticket.status === 'AWAITING_CLARIFICATION') {
     return 'AWAITING_CLARIFICATION';
   }
-  if (hasAnalysisResult(ticket)) return 'IN_PROGRESS';
+  if (
+    ticket.clarification_session?.status === 'OPEN' ||
+    (ticket.clarification_session?.messages || []).length > 0
+  ) {
+    return 'AWAITING_CLARIFICATION';
+  }
+
+  // 4. Assigned to an engineer (use status only — analysis exists for ALL tickets)
+  if (ticket.status === 'IN_PROGRESS') return 'IN_PROGRESS';
+
   return null;
 };
 

@@ -12,7 +12,7 @@ import AiAnalysisModal from '../../components/developer/AiAnalysisModal';
 import OnboardingFlow from '../../components/developer/OnboardingFlow';
 import { useToast } from '../../context/ToastContext';
 import {
-  Ticket, CheckCircle2, Clock, ChevronRight, Plus, AlertCircle,
+  Ticket, CheckCircle2, Clock, ChevronRight, Plus, AlertCircle, HourglassIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -53,6 +53,10 @@ export default function DeveloperDashboard() {
 
   const allTickets = ticketsData?.items || [];
   const recentTickets = allTickets.slice(0, 5);
+
+  const clarificationTickets = allTickets.filter(
+    (t) => t.status === 'AWAITING_CLARIFICATION' || t.status === 'OPEN_CLARIFICATION'
+  );
 
   const stats = {
     total: allTickets.length,
@@ -97,7 +101,46 @@ export default function DeveloperDashboard() {
         </Button>
       </div>
 
-      {/* KPI cards */}
+      {/* Clarification action banner */}
+      {clarificationTickets.length > 0 && (
+        <div
+          className="rounded-card border border-amber-300 bg-amber-50 shadow-card overflow-hidden animate-fade-in"
+          style={{ animation: 'slideUp 0.35s ease-out both' }}
+        >
+          <div className="border-l-4 border-l-amber-500 px-5 py-4">
+            <div className="flex items-center gap-2 mb-3">
+              <HourglassIcon size={16} className="text-amber-600 flex-shrink-0" />
+              <h2 className="text-sm font-bold text-amber-900">
+                {clarificationTickets.length === 1
+                  ? 'Un ticket attend votre réponse'
+                  : `${clarificationTickets.length} tickets attendent votre réponse`}
+              </h2>
+            </div>
+            <p className="text-xs text-amber-800 mb-3">
+              {clarificationTickets.length === 1 ? 'Ce ticket attend' : 'Ces tickets attendent'} votre réponse avant de pouvoir être traité{clarificationTickets.length === 1 ? '' : 's'}. Cliquez sur un ticket pour répondre directement.
+            </p>
+            <ul className="space-y-2">
+              {clarificationTickets.map((t) => (
+                <Link
+                  key={t.id}
+                  to={`/developer/tickets/${t.id}`}
+                  className="flex items-center justify-between gap-3 bg-white border border-amber-200 rounded-btn px-4 py-2.5 hover:bg-amber-50 hover:border-amber-400 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[11px] font-mono text-amber-700 flex-shrink-0">#{t.id}</span>
+                    <span className="text-sm font-medium text-amber-900 truncate group-hover:text-amber-700 transition-colors">{t.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Clarification requise</span>
+                    <ChevronRight size={14} className="text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </Link>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {ticketsLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)}
